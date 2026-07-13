@@ -1,0 +1,126 @@
+# Product Requirement Document (PRD): AI Fitness Trainer MVP
+
+## Project Overview
+
+An AI-driven mobile fitness application that leverages a proprietary database of nearly **3,000 exercises** (bodyweight and equipment-based). The app combines a natural language chat interface with a real-time, interactive UI layer that displays, updates, and executes workout programs dynamically.
+
+## Core Architecture & UI Mechanics
+
+* **Dual-Layer Interface:** A split-screen or overlay UI. The left/bottom is the conversational chat; the right/top is the **Live Routine Preview Component**.
+* **Bi-Directional State Sync:** Changes made in the chat instantly mutate the data model of the Preview Component. Interactive actions in the component (e.g., deleting an exercise manually) are injected back into the chat context so the agent stays aware.
+
+---
+
+## Refined & Expanded User Stories
+
+### Epic 1: Conversational Intake & Intelligent Routine Generation
+
+#### User Story 1.1: Contextual & Safe Routine Intake
+
+* **As a** user describing a goal or physical limitation (e.g., back pain, specific muscle target),
+* **I want** the AI agent to ask clarifying safety and context questions before generating a plan,
+* **So that** my routine is tailored to my equipment, experience level, and physical safety.
+* **Acceptance Criteria:**
+* If the user mentions terms like "pain," "injury," or "tweak," the agent *must* trigger an intake clarification loop regarding the severity and location.
+* The agent cannot generate a routine until it has confirmed: Location (Home vs. Gym), Available Equipment, and Session Duration.
+* If no injuries are stated, the agent proceeds immediately to database matching to reduce friction.
+
+
+#### User Story 1.2: Real-time Live Routine Preview
+
+* **As a** user waiting for my routine,
+* **I want** to see a clean, visual preview card/overlay pop up next to the chat containing the list of exercises, sets, reps, and targets,
+* **So that** I don't have to read through long paragraphs of text to see my workout.
+* **Acceptance Criteria:**
+* The preview must update asynchronously as the agent "thinks" or confirms the plan.
+* Each exercise in the preview must display: Name, Target Muscle, Sets $\times$ Reps (or Time), and Equipment required.
+
+
+
+---
+
+### Epic 2: Collaborative Chat-to-UI Modification
+
+#### User Story 2.1: Conversational Routine Refinement
+
+* **As a** user reviewing the generated routine preview,
+* **I want** to chat naturally to ask for changes (e.g., *"Swap the rows for something else,"* *"I don't have dumbbells"*),
+* **So that** the routine adjusts to my exact current situation.
+* **Acceptance Criteria:**
+* The agent processes the modification request and sends a patch command to the Preview UI, updating it instantly.
+
+
+
+#### User Story 2.2: Agent Guardrails & Rejection Handling
+
+* **As a** user requesting an illogical or unsafe adjustment,
+* **I want** the agent to politely decline the change and explain the biological or logical reason why,
+* **So that** I stay safe and my routine remains effective.
+* **Acceptance Criteria:**
+* *Example:* If a user says *"I have lower back pain, add heavy deadlifts,"* the agent flags the contradiction, explains the spinal shear risk, and suggests an alternative (e.g., Bird-Dogs or Glute Bridges).
+* The Preview UI remains unchanged if a request is declined.
+
+
+
+---
+
+### Epic 3: Program Finalization & Execution Runtime
+
+#### User Story 3.1: Routine Finalization & Hand-off
+
+* **As a** user satisfied with the previewed workout,
+* **I want** to tap a "Finalize Workout" button on the UI or type *"looks good, let's start"* in the chat,
+* **So that** the app transitions me into the dedicated, distraction-free active workout mode.
+* **Acceptance Criteria:**
+* Action locks the routine state, prevents further agent editing for this session, and triggers a navigation transition to the **Workout Tracking Screen**.
+
+
+
+#### User Story 3.2: Active Workout Tracking with Time/Set Trackers
+
+* **As a** user actively working out,
+* **I want** a clean UI displaying one exercise at a time with built-in rest timers, a way to mark sets as done, and simple navigation controls to jump between movements,
+* **So that** I can track my training seamlessly without losing focus.
+* **Acceptance Criteria:**
+* Must include an interactive countdown timer for rest periods.
+* Must allow swipe or tap navigation between sequential exercises.
+
+
+
+#### User Story 3.3: Multi-Day Routine Persistence & Continuity
+
+* **As a** user on a multi-day program (e.g., a 7-day bodyweight split),
+* **I want** the app to save my current day's progress and automatically queue up the next chronological day's preview when I open the app tomorrow,
+* **So that** I maintain consistency without restarting the conversation from scratch.
+* **Acceptance Criteria:**
+* The system saves a structured state tracking `program_id`, `current_day_index`, and `total_days`.
+
+
+
+---
+
+### Epic 4: Post-Workout Feedback Loop (The Core Value Add)
+
+#### User Story 4.1: Completion Recognition & Celebration
+
+* **As a** user completing my last set of the workout,
+* **I want** to see a highly rewarding congratulations summary screen showing total volume lifted, time elapsed, and active streaks,
+* **So that** I feel accomplished and motivated to return.
+
+#### User Story 4.2: Feedback Integration for Program Adaptation
+
+* **As a** user returning to the chat after finishing a workout,
+* **I want** to give direct feedback (e.g., *"Day 1 was way too hard on my shoulders"* or *"The weights were too light"*),
+* **So that** the agent alters subsequent days of my routine automatically based on my performance.
+* **Acceptance Criteria:**
+* The agent processes the feedback text, updates the underlying difficulty/volume weights for that user profile, and applies those modified parameters when generating or pulling up the routine for Day 2.
+
+
+
+---
+
+## Market Positioning & MVP Value Upgrades
+
+To make this stand out in the 2026 market, ensure the engineering team treats the **Live Routine Preview** not as a static text box, but as a **rich UI component** built out of the database data fields.
+
+When the user gives feedback post-workout, having the agent say, *"Got it, I've scaled back tomorrow's shoulder overhead volume by 20% to let your rotator cuffs recover,"* transforms this from a standard chat script into an indispensable premium product.
