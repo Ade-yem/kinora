@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+:root {
+  --surface: oklch(0.94 0.012 75);
+  --surface-card: oklch(0.99 0.004 80);
+  --surface-ink: oklch(0.16 0.02 60);
+  --ink: oklch(0.22 0.02 60);
+  --cream: oklch(0.99 0.004 80);
+  --volt: oklch(0.78 0.19 130);
+  --volt-text: oklch(0.4 0.13 130);
+  --coral: oklch(0.68 0.19 35);
+  --coral-text: oklch(0.5 0.15 35);
+  --error: oklch(0.55 0.19 25);
+}
+
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-card: var(--surface-card);
+  --color-surface-ink: var(--surface-ink);
+  --color-ink: var(--ink);
+  --color-cream: var(--cream);
+  --color-volt: var(--volt);
+  --color-volt-text: var(--volt-text);
+  --color-coral: var(--coral);
+  --color-coral-text: var(--coral-text);
+  --color-error: var(--error);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-space-grotesk);
+}
+
+body {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+::selection {
+  background: oklch(0.78 0.19 130 / 0.4);
+}

@@ -1,0 +1,88 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { ExerciseVisual } from "./ExerciseVisual";
+import type { RoutineExercise } from "@/lib/types";
+
+function formatSeconds(total: number): string {
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+export function TimedHold({
+  exercise,
+  setNumber,
+  onSetDone,
+  onInfoClick,
+}: {
+  exercise: RoutineExercise;
+  setNumber: number;
+  onSetDone: (performed: { seconds: number }) => void;
+  onInfoClick?: () => void;
+}) {
+  const totalSeconds = "seconds" in exercise.target ? exercise.target.seconds : 30;
+  const [remaining, setRemaining] = useState(totalSeconds);
+  const onSetDoneRef = useRef(onSetDone);
+  const firedRef = useRef(false);
+
+  useEffect(() => {
+    onSetDoneRef.current = onSetDone;
+  });
+
+  useEffect(() => {
+    if (remaining <= 0) {
+      if (!firedRef.current) {
+        firedRef.current = true;
+        onSetDoneRef.current({ seconds: totalSeconds });
+      }
+      return;
+    }
+    const id = window.setTimeout(() => setRemaining((r) => r - 1), 1000);
+    return () => window.clearTimeout(id);
+  }, [remaining, totalSeconds]);
+
+  const progress = Math.max(0, Math.min(100, ((totalSeconds - remaining) / totalSeconds) * 100));
+
+  return (
+    <div className="flex flex-1 flex-col">
+      <div className="mt-4">
+        <ExerciseVisual tone="coral" icon="🧘" onInfoClick={onInfoClick} />
+      </div>
+
+      <div className="mt-5 text-center">
+        <h1 className="font-display text-2xl font-bold">{exercise.name}</h1>
+        <p className="mt-1 text-[13px] text-cream/50">
+          {exercise.muscle} — {exercise.equipment}
+        </p>
+      </div>
+
+      <div className="flex flex-1 flex-col items-center justify-center gap-3">
+        <div className="text-xs font-bold tracking-wide text-cream/50">
+          SET {setNumber} OF {exercise.sets}
+        </div>
+        <div className="font-display text-6xl font-bold text-coral">{formatSeconds(remaining)}</div>
+        <div className="h-1.5 w-52 overflow-hidden rounded-full bg-cream/12">
+          <div className="h-full rounded-full bg-coral" style={{ width: `${progress}%` }} />
+        </div>
+      </div>
+
+      <div className="flex gap-3 pb-2">
+        <button
+          type="button"
+          aria-label="Pause"
+          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-cream/10 text-xl"
+        >
+          ⏸
+        </button>
+        <button
+          type="button"
+          onClick={() => onSetDone({ seconds: totalSeconds - remaining })}
+          className="flex-1 rounded-2xl bg-coral font-display text-[15px] font-bold text-cream"
+        >
+          Skip to Next →
+        </button>
+      </div>
+    </div>
+  );
+}
