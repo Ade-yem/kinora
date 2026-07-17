@@ -44,7 +44,7 @@ function parseSseFrame(frame: string): { event: string; data: unknown } {
   };
 }
 
-export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set) => ({
+export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, get) => ({
   chat: {
     messages: [],
     chatSessionId: null,
@@ -159,6 +159,7 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set) 
           if (event === "done") {
             const d = data as { messageId: string; kind: "text" | "guardrail" };
             finalizePlaceholder(d.messageId, d.kind);
+            get().fetchLatestRoutine();
           }
           if (event === "error") markPlaceholderError((data as { message: string }).message);
         }

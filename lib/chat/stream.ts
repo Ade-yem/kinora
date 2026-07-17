@@ -101,7 +101,13 @@ export function createChatStream({
           });
 
           for (const call of callList) {
-            const result = await executeToolCall(call.name, call.args, userId);
+            const result = await executeToolCall(
+              call.name,
+              call.args,
+              userId,
+              chatSessionId,
+              enqueueSseDelta
+            );
             messages.push({
               role: "tool",
               tool_call_id: call.id,

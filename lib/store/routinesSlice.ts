@@ -20,6 +20,7 @@ export interface RoutinesSlice {
   fetchRoutines: (params?: { page?: number; pageSize?: number; status?: RoutineStatus }) => Promise<void>;
   fetchRoutineById: (id: string) => Promise<void>;
   finalizeRoutine: () => Promise<void>;
+  fetchLatestRoutine: () => Promise<void>;
 }
 
 export const createRoutinesSlice: StateCreator<AppState, [], [], RoutinesSlice> = (set, get) => ({
@@ -52,6 +53,17 @@ export const createRoutinesSlice: StateCreator<AppState, [], [], RoutinesSlice> 
           ? "not-found"
           : "error";
       set({ routineStatus: status });
+    }
+  },
+
+  fetchLatestRoutine: async () => {
+    try {
+      const { data } = await apiGet<PaginatedResponse<RoutineSummary>>("/api/routines?pageSize=1");
+      if (data && data.length > 0) {
+        await get().fetchRoutineById(data[0].id);
+      }
+    } catch (error) {
+      console.error("Failed to fetch latest routine:", error);
     }
   },
 

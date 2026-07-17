@@ -16,6 +16,7 @@ export default function ChatPage() {
   const router = useRouter();
   const initChat = useAppStore((s) => s.initChat);
   const resetWorkout = useAppStore((s) => s.resetWorkout);
+  const fetchLatestRoutine = useAppStore((s) => s.fetchLatestRoutine);
   const messages = useAppStore((s) => s.chat.messages);
   const previewState = useAppStore((s) => s.chat.previewState);
   const isCoachTyping = useAppStore((s) => s.chat.isCoachTyping);
@@ -28,7 +29,8 @@ export default function ChatPage() {
   useEffect(() => {
     initChat();
     resetWorkout();
-  }, [initChat, resetWorkout]);
+    fetchLatestRoutine();
+  }, [initChat, resetWorkout, fetchLatestRoutine]);
 
   useEffect(() => {
     if (previewState !== "finalized") return;

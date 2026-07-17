@@ -1,6 +1,7 @@
 # Exercise data spreadsheet schema
 
 We are going to use this exercise sheet to seed our database for exercises so that agents can pull from them using tools to then recommend exercises for users
+The data is now in [fitness_links.json file](../fitness_links.json) - already seeded
 
 Exercise table headers
 
