@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ExerciseHeader } from "@/components/workout/ExerciseHeader";
 import { RepsCounter } from "@/components/workout/RepsCounter";
@@ -8,6 +8,7 @@ import { TimedHold } from "@/components/workout/TimedHold";
 import { RestTimer } from "@/components/workout/RestTimer";
 import { CompletionCelebration } from "@/components/workout/CompletionCelebration";
 import { ExerciseDetailSheet } from "@/components/chat/ExerciseDetailSheet";
+import { ExitConfirmModal } from "@/components/workout/ExitConfirmModal";
 import { useAppStore } from "@/lib/store";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 
@@ -19,6 +20,9 @@ export default function ActiveWorkoutPage() {
   const completeSet = useAppStore((s) => s.completeSet);
   const finishRest = useAppStore((s) => s.finishRest);
   const openExerciseDetail = useAppStore((s) => s.openExerciseDetail);
+  const savePartialWorkout = useAppStore((s) => s.savePartialWorkout);
+
+  const [isExitModalOpen, setIsExitModalOpen] = useState(false);
 
   if (routine.exercises.length === 0) return null;
 
@@ -50,7 +54,11 @@ export default function ActiveWorkoutPage() {
 
   return (
     <main className="flex min-h-dvh flex-1 flex-col bg-surface-ink px-6 text-cream">
-      <ExerciseHeader exerciseIndex={workout.exerciseIndex} total={routine.exercises.length} />
+      <ExerciseHeader
+        exerciseIndex={workout.exerciseIndex}
+        total={routine.exercises.length}
+        onExitClick={() => setIsExitModalOpen(true)}
+      />
       {isTimed ? (
         <TimedHold
           exercise={exercise}
@@ -67,6 +75,15 @@ export default function ActiveWorkoutPage() {
         />
       )}
       <ExerciseDetailSheet />
+      <ExitConfirmModal
+        isOpen={isExitModalOpen}
+        onClose={() => setIsExitModalOpen(false)}
+        onConfirmExit={async () => {
+          setIsExitModalOpen(false);
+          await savePartialWorkout();
+        }}
+        completedSetsCount={workout.entries.reduce((sum, entry) => sum + entry.sets.length, 0)}
+      />
     </main>
   );
 }

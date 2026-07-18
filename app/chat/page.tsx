@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Menu } from "lucide-react";
+import Link from "next/link";
+import { Menu, Home, User } from "lucide-react";
 import { ChatThread } from "@/components/chat/ChatThread";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatSessionsDrawer } from "@/components/chat/ChatSessionsDrawer";
@@ -11,13 +12,17 @@ import { RoutinePreviewSheet } from "@/components/chat/RoutinePreviewSheet";
 import { ExerciseDetailSheet } from "@/components/chat/ExerciseDetailSheet";
 import { useAppStore } from "@/lib/store";
 import { useRequireAuth } from "@/lib/useRequireAuth";
+import { Logo } from "@/components/ui/Logo";
+import { useLogoStyle } from "@/lib/useLogoStyle";
 
 export default function ChatPage() {
-  useRequireAuth();
+  const { data: session } = useRequireAuth();
   const router = useRouter();
+  const { logoStyle } = useLogoStyle();
   
   // Local UI State
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [prefilledValue, setPrefilledValue] = useState("");
 
   // Store actions & state
   const initChat = useAppStore((s) => s.initChat);
@@ -40,6 +45,11 @@ export default function ChatPage() {
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
     const sessionIdParam = searchParams.get("sessionId");
+    const draftParam = searchParams.get("draft");
+
+    if (draftParam) {
+      setPrefilledValue(draftParam);
+    }
 
     let resolvedSessionId: string | undefined;
 
@@ -92,20 +102,46 @@ export default function ChatPage() {
         }`}
       >
         {/* Header Bar */}
-        <div className="flex items-center gap-2 border-b border-ink/8 px-5 py-3.5 shrink-0">
-          <button
-            onClick={() => setIsDrawerOpen(true)}
-            className="lg:hidden p-1 mr-1 text-ink hover:bg-ink/5 rounded-lg cursor-pointer"
-            aria-label="Open chats list"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-volt text-xs" aria-hidden>
-            ⚡
+        <div className="flex items-center justify-between border-b border-ink/8 px-5 py-3.5 shrink-0">
+          <div className="flex items-center gap-2 truncate">
+            <button
+              onClick={() => setIsDrawerOpen(true)}
+              className="lg:hidden p-1 mr-1 text-ink hover:bg-ink/5 rounded-lg cursor-pointer"
+              aria-label="Open chats list"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <Link
+              href="/home"
+              className="p-1 text-ink hover:bg-ink/5 rounded-lg cursor-pointer"
+              aria-label="Go to Home"
+            >
+              <Home className="h-5 w-5" />
+            </Link>
+            <Logo variant={logoStyle} size="sm" className="rounded-lg" />
+            <span className="font-display text-sm font-bold truncate">
+              {activeSession?.title}
+            </span>
           </div>
-          <span className="font-display text-sm font-bold truncate">
-            {activeSession?.title}
-          </span>
+
+          <Link
+            href="/profile"
+            className="flex shrink-0 items-center justify-center rounded-full hover:opacity-85 transition cursor-pointer"
+            aria-label="View Profile"
+          >
+            {session?.user?.image ? (
+              <img
+                src={session.user.image}
+                alt={session.user.name || "Profile"}
+                className="h-7 w-7 rounded-full object-cover border border-ink/10"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-volt/25 text-[11px] font-bold">
+                <User className="w-7 h-7 text-ink p-1" />
+              </div>
+            )}
+          </Link>
         </div>
 
         {/* Messages scroll list */}
@@ -123,7 +159,13 @@ export default function ChatPage() {
               <RoutinePreviewDocked routine={routine} onExpand={() => setPreviewState("full-sheet")} />
             </div>
           )}
-          <ChatInput onSend={sendMessage} />
+          <ChatInput
+            onSend={(text) => {
+              sendMessage(text);
+              setPrefilledValue("");
+            }}
+            initialValue={prefilledValue}
+          />
         </div>
       </div>
 

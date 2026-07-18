@@ -22,6 +22,13 @@ interface RoutineSummary {
   dayIndex: number | null;
   totalDays: number | null;
   updatedAt: Date;
+  programId: string | null;
+  logs: {
+    id: string;
+    performedAt: Date;
+    durationSeconds: number | null;
+    totalVolumeKg: number | null;
+  }[];
 }
 
 const ROUTINE_SUMMARY_SELECT = {
@@ -33,7 +40,16 @@ const ROUTINE_SUMMARY_SELECT = {
   dayIndex: true,
   totalDays: true,
   updatedAt: true,
+  programId: true,
   items: { select: { id: true } },
+  logs: {
+    select: {
+      id: true,
+      performedAt: true,
+      durationSeconds: true,
+      totalVolumeKg: true,
+    },
+  },
 } as const;
 
 function toRoutineSummary(r: {
@@ -45,7 +61,14 @@ function toRoutineSummary(r: {
   dayIndex: number | null;
   totalDays: number | null;
   updatedAt: Date;
+  programId: string | null;
   items: { id: string }[];
+  logs: {
+    id: string;
+    performedAt: Date;
+    durationSeconds: number | null;
+    totalVolumeKg: number | null;
+  }[];
 }): RoutineSummary {
   return {
     id: r.id,
@@ -55,6 +78,8 @@ function toRoutineSummary(r: {
     dayIndex: r.dayIndex,
     totalDays: r.totalDays,
     updatedAt: r.updatedAt,
+    programId: r.programId,
+    logs: r.logs,
   };
 }
 

@@ -7,6 +7,7 @@ export const ProfileUpdateSchema = z.object({
   sessionDurationMinutes: z.number().int().positive().optional(),
   injuriesNotes: z.string().optional(),
   unitsPreference: z.enum(["lb", "kg"]).optional(),
+  logoStyle: z.enum(["pulse-bubble", "rep-loop", "signal-bars"]).optional(),
   injuries: z
     .array(
       z.object({

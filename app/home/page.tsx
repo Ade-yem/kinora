@@ -16,19 +16,14 @@ export default function HomePage() {
   const workoutPhase = useAppStore((s) => s.workout.phase);
   const stats = useAppStore((s) => s.stats);
   const fetchRoutines = useAppStore((s) => s.fetchRoutines);
-  const fetchRoutineById = useAppStore((s) => s.fetchRoutineById);
+  const fetchLatestRoutine = useAppStore((s) => s.fetchLatestRoutine);
   const fetchStats = useAppStore((s) => s.fetchStats);
 
   useEffect(() => {
     fetchRoutines({ pageSize: 5 });
+    fetchLatestRoutine();
     fetchStats();
-  }, [fetchRoutines, fetchStats]);
-
-  const todaySummary = routines[0];
-
-  useEffect(() => {
-    if (todaySummary) fetchRoutineById(todaySummary.id);
-  }, [todaySummary, fetchRoutineById]);
+  }, [fetchRoutines, fetchLatestRoutine, fetchStats]);
 
   const displayName = session?.user?.name ?? "there";
 
@@ -39,9 +34,20 @@ export default function HomePage() {
         <Link
           href="/profile"
           aria-label="Profile"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-ink/8 text-base"
+          className="flex h-9 w-9 items-center justify-center rounded-full hover:opacity-85 transition cursor-pointer"
         >
-          <span aria-hidden>👤</span>
+          {session?.user?.image ? (
+            <img
+              src={session.user.image}
+              alt={session.user.name || "Profile"}
+              className="h-9 w-9 rounded-full object-cover border border-ink/10"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-volt/25 text-base">
+              👤
+            </div>
+          )}
         </Link>
       </div>
 

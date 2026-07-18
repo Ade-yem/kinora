@@ -223,9 +223,9 @@ async function modifyWorkoutRoutine(
   onProgress: (text: string) => void
 ) {
   try {
-    let args: any;
+    let args: { feedback?: string };
     try {
-      args = JSON.parse(argsJson);
+      args = JSON.parse(argsJson) as { feedback?: string };
     } catch {
       return { error: "invalid arguments" };
     }

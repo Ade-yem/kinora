@@ -44,3 +44,65 @@ body {
 .hide-scrollbar::-webkit-scrollbar, #chat-input::-webkit-scrollbar {
   display: none;
 }
+
+/* SplashScreen Animations */
+@keyframes splashIconIn { 
+  0% { opacity:0; transform:scale(.35) rotate(-18deg); } 
+  65% { opacity:1; transform:scale(1.08) rotate(4deg); } 
+  100% { opacity:1; transform:scale(1) rotate(0deg); } 
+}
+@keyframes splashIconPulse { 
+  0%,100% { transform:scale(1); } 
+  50% { transform:scale(1.05); } 
+}
+@keyframes splashFadeUp { 
+  0% { opacity:0; transform:translateY(14px); } 
+  100% { opacity:1; transform:translateY(0); } 
+}
+@keyframes splashBarFill { 
+  0% { width:0%; } 
+  100% { width:100%; } 
+}
+@keyframes splashFloat { 
+  0%,100% { transform:translateY(0) rotate(0deg); } 
+  50% { transform:translateY(-12px) rotate(6deg); } 
+}
+@keyframes splashFloat2 { 
+  0%,100% { transform:translateY(0) rotate(0deg); } 
+  50% { transform:translateY(10px) rotate(-8deg); } 
+}
+
+.animate-splash-icon-in {
+  animation: splashIconIn .9s cubic-bezier(.2,.9,.3,1.4) both;
+}
+.animate-splash-icon-pulse {
+  animation: splashIconPulse 2.6s ease-in-out infinite;
+}
+.animate-splash-fade-up {
+  animation: splashFadeUp .5s ease both;
+}
+.animate-splash-bar-fill {
+  animation: splashBarFill 1.6s ease 1s both;
+}
+.animate-splash-float {
+  animation: splashFloat 4.5s ease-in-out infinite;
+}
+.animate-splash-float-2 {
+  animation: splashFloat2 5.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-splash-icon-in,
+  .animate-splash-icon-pulse,
+  .animate-splash-fade-up,
+  .animate-splash-bar-fill,
+  .animate-splash-float,
+  .animate-splash-float-2 {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .animate-splash-bar-fill {
+    width: 100% !important;
+  }
+}

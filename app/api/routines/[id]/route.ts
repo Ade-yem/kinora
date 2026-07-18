@@ -111,6 +111,18 @@ export async function PATCH(
         );
       }
 
+      if (routine.programId) {
+        await prisma.workoutRoutine.updateMany({
+          where: {
+            programId: routine.programId,
+            userId: session.user.id,
+            status: "APPROVED",
+            finalizedAt: null,
+          },
+          data: { finalizedAt: new Date() },
+        });
+      }
+
       const updated = await prisma.workoutRoutine.update({
         where: { id },
         data: { finalizedAt: new Date() },

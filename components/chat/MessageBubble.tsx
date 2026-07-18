@@ -1,12 +1,30 @@
 import type { ChatMessage } from "@/types";
 import { RichText } from "./RichText";
 import { CollapsibleThoughts } from "./CollapsibleThoughts";
+import { useSession } from "next-auth/react";
+import { User } from "lucide-react";
 
 export function MessageBubble({ message }: { message: ChatMessage }) {
+  const { data: session } = useSession();
+
   if (message.role === "user") {
     return (
-      <div className="max-w-[78%] self-end rounded-2xl rounded-tr-md bg-ink px-3.5 py-2.5 text-sm text-cream">
-        <RichText text={message.text} />
+      <div className="flex items-start gap-2.5 max-w-[82%] self-end">
+        <div className="rounded-2xl rounded-tr-md bg-ink px-3.5 py-2.5 text-sm text-cream">
+          <RichText text={message.text} />
+        </div>
+        {session?.user?.image ? (
+          <img
+            src={session.user.image}
+            alt={session.user.name || "User"}
+            className="h-7 w-7 rounded-full object-cover border border-ink/10 shrink-0"
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-volt/25 text-[11px] font-bold shrink-0">
+            <User className="w-7 h-7 text-ink p-1" />
+          </div>
+        )}
       </div>
     );
   }

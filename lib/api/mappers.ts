@@ -34,6 +34,10 @@ export function routineStatusToApi(
   finalizedAt: Date | null,
   itemCount: number
 ): FrontendRoutineStatus {
+  if (status === "APPROVED") {
+    return finalizedAt ? "finalized" : "ready";
+  }
+
   if (itemCount === 0) {
     return "empty";
   }
@@ -44,10 +48,6 @@ export function routineStatusToApi(
     status === "REJECTED"
   ) {
     return "forming";
-  }
-
-  if (status === "APPROVED") {
-    return finalizedAt ? "finalized" : "ready";
   }
 
   return "empty";

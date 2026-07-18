@@ -80,7 +80,7 @@ export function CompletionCelebration({ routine }: { routine: Routine }) {
       <div className="mt-auto flex flex-col gap-3 pb-9">
         <Button
           variant="primary"
-          href="/chat"
+          href={`/chat?sessionId=${routine.chatSessionId || ""}&draft=feedback: I just completed "${routine.title}".`}
           className="w-full bg-volt text-volt-text font-bold hover:bg-opacity-90 active:scale-98 transition-all text-base py-3.5 rounded-2xl flex justify-center items-center gap-2 cursor-pointer shadow-md"
         >
           <MessageSquare className="h-5 w-5" />

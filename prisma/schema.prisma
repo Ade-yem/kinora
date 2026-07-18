@@ -79,6 +79,7 @@ model UserProfile {
   injuries               Json?
   injuriesNotes          String?            @map("injuries_notes")
   unitsPreference        String             @default("lb") @map("units_preference")
+  logoStyle              String             @default("pulse-bubble") @map("logo_style")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

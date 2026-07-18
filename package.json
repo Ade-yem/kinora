@@ -6,10 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test": "vitest run",
     "lint": "eslint",
     "generate": "prisma generate",
     "migrate": "prisma migrate dev --name init",
-    "db-reset": "prisma migrate reset && npm run migrate",
+    "db-reset": "prisma migrate reset && pnpm migrate",
     "prisma-studio": "prisma studio",
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio",
@@ -42,6 +43,7 @@
     "eslint-config-next": "16.2.10",
     "prisma": "^7.8.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }

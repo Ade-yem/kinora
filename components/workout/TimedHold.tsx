@@ -24,6 +24,7 @@ export function TimedHold({
 }) {
   const totalSeconds = "seconds" in exercise.target ? exercise.target.seconds : 30;
   const [remaining, setRemaining] = useState(totalSeconds);
+  const [isPaused, setIsPaused] = useState(false);
   const onSetDoneRef = useRef(onSetDone);
   const firedRef = useRef(false);
 
@@ -32,6 +33,7 @@ export function TimedHold({
   });
 
   useEffect(() => {
+    if (isPaused) return;
     if (remaining <= 0) {
       if (!firedRef.current) {
         firedRef.current = true;
@@ -41,7 +43,7 @@ export function TimedHold({
     }
     const id = window.setTimeout(() => setRemaining((r) => r - 1), 1000);
     return () => window.clearTimeout(id);
-  }, [remaining, totalSeconds]);
+  }, [remaining, totalSeconds, isPaused]);
 
   const progress = Math.max(0, Math.min(100, ((totalSeconds - remaining) / totalSeconds) * 100));
 
@@ -74,24 +76,29 @@ export function TimedHold({
         <div className="text-xs font-bold tracking-wide text-cream/50">
           SET {setNumber} OF {exercise.sets}
         </div>
-        <div className="font-display text-6xl font-bold text-coral">{formatSeconds(remaining)}</div>
+        <div className={`font-display text-6xl font-bold text-coral transition-all ${isPaused ? "opacity-60 scale-95" : ""}`}>
+          {formatSeconds(remaining)}
+        </div>
         <div className="h-1.5 w-52 overflow-hidden rounded-full bg-cream/12">
-          <div className="h-full rounded-full bg-coral" style={{ width: `${progress}%` }} />
+          <div className={`h-full rounded-full bg-coral transition-all duration-300 ${isPaused ? "bg-coral/60 animate-pulse" : ""}`} style={{ width: `${progress}%` }} />
         </div>
       </div>
 
       <div className="flex gap-3 pb-2">
         <button
           type="button"
-          aria-label="Pause"
-          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-cream/10 text-xl"
+          onClick={() => setIsPaused((p) => !p)}
+          aria-label={isPaused ? "Resume" : "Pause"}
+          className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-xl cursor-pointer transition active:scale-95 ${
+            isPaused ? "bg-volt text-ink font-bold" : "bg-cream/10 text-cream hover:bg-cream/15"
+          }`}
         >
-          ⏸
+          {isPaused ? "▶️" : "⏸"}
         </button>
         <button
           type="button"
           onClick={() => onSetDone({ seconds: totalSeconds - remaining })}
-          className="flex-1 rounded-2xl bg-coral font-display text-[15px] font-bold text-cream"
+          className="flex-1 rounded-2xl bg-coral font-display text-[15px] font-bold text-cream cursor-pointer transition active:scale-95"
         >
           Skip to Next →
         </button>

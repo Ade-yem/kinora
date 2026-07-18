@@ -5,10 +5,11 @@ import {
   TargetMuscleGroup,
   PrimaryExerciseClassification,
   Prisma,
+  UserProfile,
 } from "@/app/generated/prisma/client";
 
 // Normalize target muscle groups to match database enums
-function normalizeMuscleGroup(m: string): TargetMuscleGroup | null {
+export function normalizeMuscleGroup(m: string): TargetMuscleGroup | null {
   const normalized = m.toUpperCase().trim().replace(/\s+/g, "_");
   if (normalized === "CHEST") return TargetMuscleGroup.CHEST;
   if (normalized === "QUADS" || normalized === "QUADRICEPS") return TargetMuscleGroup.QUADRICEPS;
@@ -31,16 +32,47 @@ function normalizeMuscleGroup(m: string): TargetMuscleGroup | null {
 }
 
 // Search tool helper for Generator
+export interface ExerciseCandidate {
+  exerciseId: string;
+  sets: number;
+  targetReps: number | null;
+  targetSeconds: number | null;
+  targetSide: string | null;
+}
+
+export interface RoutineCandidate {
+  title: string;
+  subtitle: string;
+  dayIndex: number;
+  totalDays: number;
+  exercises: ExerciseCandidate[];
+}
+
+export interface ProgramCandidate {
+  programTitle: string;
+  routines: RoutineCandidate[];
+}
+
+interface SearchExercisesArgs {
+  muscles?: string[];
+  equipment?: string[];
+  classification?: string;
+  bodyRegion?: string;
+  search?: string;
+  limit?: number;
+}
+
+// Search tool helper for Generator
 export async function getExercisesByParametersInternal(argsJson: string) {
-  let args: any;
+  let args: SearchExercisesArgs;
   try {
-    args = JSON.parse(argsJson);
+    args = JSON.parse(argsJson) as SearchExercisesArgs;
   } catch {
     return { error: "invalid arguments" };
   }
 
   const { muscles, equipment, classification, bodyRegion, search, limit = 20 } = args;
-  const andConditions: any[] = [];
+  const andConditions: Prisma.ExerciseWhereInput[] = [];
 
   if (search) {
     andConditions.push({ name: { contains: search, mode: "insensitive" } });
@@ -49,7 +81,7 @@ export async function getExercisesByParametersInternal(argsJson: string) {
   if (muscles && muscles.length > 0) {
     const muscleConditions = muscles.map((m: string) => {
       const enumVal = normalizeMuscleGroup(m);
-      const orConditions: any[] = [
+      const orConditions: Prisma.ExerciseWhereInput[] = [
         { primeMoverMuscle: { contains: m, mode: "insensitive" } },
         { secondaryMuscle: { contains: m, mode: "insensitive" } },
       ];
@@ -109,7 +141,7 @@ export async function getExercisesByParametersInternal(argsJson: string) {
   }
 }
 
-const GENERATOR_SYSTEM_PROMPT = `You are a professional Personal Trainer and Workout Routine Generator Agent. Your job is to create a structured, highly effective workout routine for a user based on their profile.
+const GENERATOR_SYSTEM_PROMPT = `You are a professional Personal Trainer and Workout Routine Generator Agent. Your job is to create structured, highly effective workout routines for a user based on their profile.
 
 You MUST follow these rules:
 1. Use the \`get_exercises_by_parameters\` tool to find REAL exercises in the database. Never invent exercise IDs.
@@ -119,20 +151,25 @@ You MUST follow these rules:
    - 45 minutes: 5-6 exercises (approx. 15-18 total sets).
    - 60+ minutes: 6-8 exercises (approx. 18-24 total sets).
 4. Do NOT include exercises that aggravate the user's listed injuries (e.g., no overhead press for shoulder pain, no heavy deadlifts/squats for lower back pain).
-5. If an existing routine is provided in the context, modify that routine to satisfy the user's requested adjustment. Keep unchanged exercises as they are (preserving their exerciseId and parameters), only replace, insert, or remove exercises as needed to address the feedback. Keep the overall duration, equipment limits, and injury notes in mind.
+5. If a multi-day routine, split, or program is requested (e.g. 3-day split), generate one routine object per day in the \`routines\` array (with correct \`dayIndex\` and \`totalDays\`). You can designate recovery or rest days by providing an empty \`exercises\` array (\`"exercises": []\`) for that day, using a title like "Day 3: Rest & Recovery" and a brief subtitle. If an existing program is provided in the context, modify that program's daily routines to satisfy the user's requested adjustment. Keep unchanged exercises as they are (preserving their exerciseId and parameters), only replace, insert, or remove exercises as needed to address the feedback. Keep the overall duration, equipment limits, and injury notes in mind.
 6. Output your final response as a JSON object inside a \`\`\`json \`\`\` block matching this format:
 {
-  "title": "Routine Title (e.g. Day 1: Upper Body Push)",
-  "subtitle": "Short descriptive subtitle of the routine focus",
-  "dayIndex": 1,          // Optional integer for the day index in program (e.g. 1)
-  "totalDays": 1,         // Optional integer for total days in program (e.g. 3)
-  "exercises": [
+  "programTitle": "Overall program title (e.g. 7-Day Abs, Shoulders & Core)",
+  "routines": [
     {
-      "exerciseId": "exact_exercise_id_from_tool_call",
-      "sets": 3,
-      "targetReps": 10,       // integer number of reps, OR null if time-based
-      "targetSeconds": null,  // integer number of seconds, OR null if rep-based
-      "targetSide": null      // "per-side" if unilateral (e.g. single-leg split squat), OR null
+      "title": "Day title (e.g. Day 1: Core Foundation)",
+      "subtitle": "Short descriptive subtitle of the routine focus",
+      "dayIndex": 1,          // integer for the day index in program (e.g. 1)
+      "totalDays": 3,         // integer for total days in program (e.g. 3)
+      "exercises": [
+        {
+          "exerciseId": "exact_exercise_id_from_tool_call",
+          "sets": 3,
+          "targetReps": 10,       // integer number of reps, OR null if time-based
+          "targetSeconds": null,  // integer number of seconds, OR null if rep-based
+          "targetSide": null      // "per-side" if unilateral (e.g. single-leg split squat), OR null
+        }
+      ]
     }
   ]
 }
@@ -152,15 +189,36 @@ You must reply with a JSON object ONLY containing:
 
 Do not include any other conversational text.`;
 
+interface SafeToolCall {
+  id: string;
+  type: "function";
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
 async function runGenerator(
-  userProfile: any,
+  userProfile: UserProfile,
   goal: string,
   feedbackLoopNotes: string | null,
   onProgress: (text: string) => void,
   feedback?: string,
   currentRoutineContext?: string
 ): Promise<string> {
-  const messages: any[] = [
+  const messages: {
+    role: "system" | "user" | "assistant" | "tool";
+    content: string;
+    tool_calls?: {
+      id: string;
+      type: "function";
+      function: {
+        name: string;
+        arguments: string;
+      };
+    }[];
+    tool_call_id?: string;
+  }[] = [
     { role: "system", content: GENERATOR_SYSTEM_PROMPT },
     {
       role: "user",
@@ -180,7 +238,7 @@ ${feedbackLoopNotes ? `\nFeedback from Reviewer/Previous attempt:\n${feedbackLoo
   while (turn < 5) {
     const completion = await llmClient.chat.completions.create({
       model: DEEPSEEK_MODEL || "deepseek-v4-flash",
-      messages,
+      messages: messages as unknown as Parameters<typeof llmClient.chat.completions.create>[0]["messages"],
       tools: [
         {
           type: "function",
@@ -217,15 +275,26 @@ ${feedbackLoopNotes ? `\nFeedback from Reviewer/Previous attempt:\n${feedbackLoo
     const message = choice.message;
 
     if (message.tool_calls && message.tool_calls.length > 0) {
-      messages.push(message);
-      for (const toolCall of message.tool_calls) {
-        const tc = toolCall as any;
-        if (tc.function.name === "get_exercises_by_parameters") {
-          onProgress(`[Generator] Searching exercises for muscles: ${JSON.parse(tc.function.arguments).muscles || "any"}...\n`);
-          const result = await getExercisesByParametersInternal(tc.function.arguments);
+      const toolCalls = message.tool_calls as unknown as SafeToolCall[];
+      messages.push({
+        role: "assistant",
+        content: message.content || "",
+        tool_calls: toolCalls.map((tc) => ({
+          id: tc.id,
+          type: "function" as const,
+          function: {
+            name: tc.function.name,
+            arguments: tc.function.arguments,
+          },
+        })),
+      });
+      for (const toolCall of toolCalls) {
+        if (toolCall.function.name === "get_exercises_by_parameters") {
+          onProgress(`[Generator] Searching exercises for muscles: ${JSON.parse(toolCall.function.arguments).muscles || "any"}...\n`);
+          const result = await getExercisesByParametersInternal(toolCall.function.arguments);
           messages.push({
             role: "tool",
-            tool_call_id: tc.id,
+            tool_call_id: toolCall.id,
             content: JSON.stringify(result),
           });
         }
@@ -240,16 +309,17 @@ ${feedbackLoopNotes ? `\nFeedback from Reviewer/Previous attempt:\n${feedbackLoo
 }
 
 async function runReviewer(
-  userProfile: any,
-  candidateRoutine: any,
-  onProgress: (text: string) => void
+  userProfile: UserProfile,
+  candidateRoutine: ProgramCandidate,
+  onProgress: (text: string) => void,
+  currentRoutineContext?: string
 ): Promise<{ status: "APPROVED" | "REJECTED"; reviewNotes: string }> {
   onProgress(`[Reviewer] Reviewing routine candidate...\n`);
 
-  const messages: any[] = [
-    { role: "system", content: REVIEWER_SYSTEM_PROMPT },
+  const messages = [
+    { role: "system" as const, content: REVIEWER_SYSTEM_PROMPT },
     {
-      role: "user",
+      role: "user" as const,
       content: `User Profile:
 - Goal: ${userProfile.goal || "Not specified"}
 - Location: ${userProfile.location || "Not specified"}
@@ -257,6 +327,7 @@ async function runReviewer(
 - Session Duration: ${userProfile.sessionDurationMinutes || 45} minutes
 - Injuries/Notes: ${userProfile.injuriesNotes || "None"}
 
+${currentRoutineContext ? `Active Program/Routines before refinement:\n${currentRoutineContext}\n` : ""}
 Candidate Routine:
 ${JSON.stringify(candidateRoutine, null, 2)}`,
     },
@@ -269,17 +340,17 @@ ${JSON.stringify(candidateRoutine, null, 2)}`,
 
   const content = completion.choices[0].message.content || "";
   try {
-    const parsed = extractJson(content);
+    const parsed = extractJson(content) as { status: string; reviewNotes?: string };
     return {
       status: parsed.status === "APPROVED" ? "APPROVED" : "REJECTED",
       reviewNotes: parsed.reviewNotes || "",
     };
-  } catch (error) {
+  } catch {
     throw new Error(`Reviewer output was not valid JSON: ${content}`);
   }
 }
 
-function extractJson(text: string): any {
+export function extractJson(text: string): unknown {
   const jsonBlockRegex = /```json\s*([\s\S]*?)\s*```/;
   const match = text.match(jsonBlockRegex);
   const jsonText = match ? match[1] : text;
@@ -291,7 +362,7 @@ function extractJson(text: string): any {
     if (firstBrace !== -1 && lastBrace !== -1) {
       try {
         return JSON.parse(jsonText.substring(firstBrace, lastBrace + 1));
-      } catch (e2) {
+      } catch {
         throw new Error(`Failed to parse JSON: ${(e as Error).message}`);
       }
     }
@@ -308,56 +379,100 @@ async function saveRoutineToDb({
 }: {
   userId: string;
   chatSessionId: string;
-  routineData: any;
+  routineData: ProgramCandidate;
   status: "APPROVED" | "REJECTED";
-  reviewNotes?: any;
+  reviewNotes?: Prisma.InputJsonValue | null;
 }) {
-  const title = routineData.title || "My Workout Routine";
-  const subtitle = routineData.subtitle || "";
-  const exercises = routineData.exercises || [];
+  const routinesList = routineData.routines || [];
+  const programTitle = routineData.programTitle || "My Workout Program";
 
-  return prisma.$transaction(async (tx: any) => {
-    // Check if there is an existing routine for this chat session - even after a routine is finalized, it can still be edited
-    const existingRoutine = await tx.workoutRoutine.findFirst({
+  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    let programId: string | null = null;
+    if (routinesList.length > 1) {
+      const existingWithProgram = await tx.workoutRoutine.findFirst({
+        where: { chatSessionId, NOT: { programId: null } },
+        select: { programId: true },
+      });
+      programId = existingWithProgram?.programId || `prog_${Math.random().toString(36).substring(2, 11)}`;
+    }
+
+    const savedRoutines = [];
+    const totalDays = routinesList.length;
+
+    for (const rData of routinesList) {
+      const title = rData.title || programTitle;
+      const subtitle = rData.subtitle || "";
+      const exercises = rData.exercises || [];
+      const dayIndex = rData.dayIndex ? Number(rData.dayIndex) : 1;
+
+      const existingRoutine = await tx.workoutRoutine.findFirst({
+        where: { chatSessionId, dayIndex },
+      });
+
+      let routine;
+      const dbReviewNotes = (reviewNotes !== undefined && reviewNotes !== null)
+        ? (reviewNotes as Prisma.InputJsonValue)
+        : (status === "REJECTED"
+          ? ({ error: "Rejected by reviewer" } as Prisma.InputJsonValue)
+          : Prisma.DbNull);
+
+      if (existingRoutine) {
+        routine = await tx.workoutRoutine.update({
+          where: { id: existingRoutine.id },
+          data: {
+            title,
+            subtitle,
+            status,
+            reviewNotes: dbReviewNotes,
+            dayIndex,
+            totalDays,
+            programId,
+          },
+        });
+
+        await tx.routineItem.deleteMany({
+          where: { routineId: existingRoutine.id },
+        });
+      } else {
+        routine = await tx.workoutRoutine.create({
+          data: {
+            userId,
+            chatSessionId,
+            title,
+            subtitle,
+            status,
+            reviewNotes: dbReviewNotes,
+            dayIndex,
+            totalDays,
+            programId,
+          },
+        });
+      }
+
+      for (let i = 0; i < exercises.length; i++) {
+        const ex = exercises[i];
+        await tx.routineItem.create({
+          data: {
+            routineId: routine.id,
+            exerciseId: ex.exerciseId,
+            order: i + 1,
+            sets: Number(ex.sets) || 3,
+            targetReps: ex.targetReps !== null && ex.targetReps !== undefined ? Number(ex.targetReps) : null,
+            targetSeconds: ex.targetSeconds !== null && ex.targetSeconds !== undefined ? Number(ex.targetSeconds) : null,
+            targetSide: ex.targetSide || null,
+          },
+        });
+      }
+      savedRoutines.push(routine);
+    }
+
+    await tx.workoutRoutine.deleteMany({
       where: {
-        chatSessionId
+        chatSessionId,
+        dayIndex: { gt: totalDays },
       },
     });
 
-    let routine;
-    if (existingRoutine) {
-      routine = await tx.workoutRoutine.update({
-        where: { id: existingRoutine.id },
-        data: {
-          title,
-          subtitle,
-          status,
-          reviewNotes: reviewNotes || (status === "REJECTED" ? { error: "Rejected by reviewer" } : null),
-          dayIndex: routineData.dayIndex ? Number(routineData.dayIndex) : 1,
-          totalDays: routineData.totalDays ? Number(routineData.totalDays) : 1,
-        },
-      });
-
-      // Clear previous routine items to avoid duplicates or trailing items
-      await tx.routineItem.deleteMany({
-        where: { routineId: existingRoutine.id },
-      });
-    } else {
-      routine = await tx.workoutRoutine.create({
-        data: {
-          userId,
-          chatSessionId,
-          title,
-          subtitle,
-          status,
-          reviewNotes: reviewNotes || (status === "REJECTED" ? { error: "Rejected by reviewer" } : null),
-          dayIndex: routineData.dayIndex ? Number(routineData.dayIndex) : 1,
-          totalDays: routineData.totalDays ? Number(routineData.totalDays) : 1,
-        },
-      });
-    }
-
-    // Automatically update the ChatSession title if it is default ("New Chat") or empty
     const session = await tx.chatSession.findUnique({
       where: { id: chatSessionId },
       select: { title: true },
@@ -365,27 +480,11 @@ async function saveRoutineToDb({
     if (session && (!session.title || session.title === "New Chat" || session.title.trim() === "")) {
       await tx.chatSession.update({
         where: { id: chatSessionId },
-        data: { title },
+        data: { title: programTitle },
       });
     }
 
-    // 2. Create RoutineItems
-    for (let i = 0; i < exercises.length; i++) {
-      const ex = exercises[i];
-      await tx.routineItem.create({
-        data: {
-          routineId: routine.id,
-          exerciseId: ex.exerciseId,
-          order: i + 1,
-          sets: Number(ex.sets) || 3,
-          targetReps: ex.targetReps !== null && ex.targetReps !== undefined ? Number(ex.targetReps) : null,
-          targetSeconds: ex.targetSeconds !== null && ex.targetSeconds !== undefined ? Number(ex.targetSeconds) : null,
-          targetSide: ex.targetSide || null,
-        },
-      });
-    }
-
-    return routine;
+    return savedRoutines[0] || null;
   });
 }
 
@@ -409,9 +508,9 @@ export async function runRoutineGenerationLoop({
 
   let routineContext = "";
   if (feedback) {
-    const latestRoutine = await prisma.workoutRoutine.findFirst({
+    const activeRoutines = await prisma.workoutRoutine.findMany({
       where: { chatSessionId, status: "APPROVED" },
-      orderBy: { createdAt: "desc" },
+      orderBy: { dayIndex: "asc" },
       include: {
         items: {
           include: { exercise: true },
@@ -420,20 +519,25 @@ export async function runRoutineGenerationLoop({
       },
     });
 
-    if (latestRoutine) {
-      routineContext = `\nActive Routine to modify (ID: ${latestRoutine.id}):\n`;
-      routineContext += `Title: ${latestRoutine.title}\n`;
-      routineContext += `Subtitle: ${latestRoutine.subtitle || ""}\n`;
-      routineContext += `Exercises:\n`;
-      latestRoutine.items.forEach((item: any, index: number) => {
-        routineContext += `${index + 1}. ${item.exercise.name} (ID: ${item.exerciseId}) - ${item.sets} sets x ${item.targetReps ?? item.targetSeconds ?? 10} reps/secs\n`;
-      });
+    if (activeRoutines.length > 0) {
+      routineContext = `\nActive Program Routines to modify:\n`;
+      for (const routine of activeRoutines) {
+        routineContext += `Day ${routine.dayIndex || 1}: ${routine.title} (ID: ${routine.id})\n`;
+        if (routine.subtitle) {
+          routineContext += `Subtitle: ${routine.subtitle}\n`;
+        }
+        routineContext += `Exercises:\n`;
+        routine.items.forEach((item: { exercise: { name: string }; exerciseId: string; sets: number; targetReps: number | null; targetSeconds: number | null }) => {
+          routineContext += `  - ${item.exercise.name} (ID: ${item.exerciseId}) - ${item.sets} sets x ${item.targetReps ?? item.targetSeconds ?? 10} reps/secs\n`;
+        });
+        routineContext += `\n`;
+      }
     }
   }
 
   let attempt = 0;
   let feedbackNotes: string | null = null;
-  let candidateRoutine: any = null;
+  let candidateRoutine: ProgramCandidate | null = null;
 
   while (attempt < 3) {
     attempt++;
@@ -448,8 +552,8 @@ export async function runRoutineGenerationLoop({
         feedback,
         routineContext
       );
-      candidateRoutine = extractJson(generatorOutput);
-      onProgress(`[Generator] Routine candidate proposed: "${candidateRoutine.title}"\n`);
+      candidateRoutine = extractJson(generatorOutput) as ProgramCandidate;
+      onProgress(`[Generator] Routine candidate proposed: "${candidateRoutine.programTitle || "Workout Program"}"\n`);
     } catch (e) {
       onProgress(`[Generator] Error: ${(e as Error).message}. Retrying...\n`);
       feedbackNotes = `Previous generation failed: ${(e as Error).message}`;
@@ -458,7 +562,7 @@ export async function runRoutineGenerationLoop({
 
     // Run Reviewer (Critic)
     try {
-      const reviewResult = await runReviewer(profile, candidateRoutine, onProgress);
+      const reviewResult = await runReviewer(profile, candidateRoutine, onProgress, routineContext);
       if (reviewResult.status === "APPROVED") {
         onProgress(`[Reviewer] APPROVED! Saving routine...\n`);
         
@@ -468,6 +572,10 @@ export async function runRoutineGenerationLoop({
           routineData: candidateRoutine,
           status: "APPROVED",
         });
+
+        if (!routine) {
+          throw new Error("Routine could not be saved to database");
+        }
 
         onProgress(`[System] Routine saved with ID: ${routine.id}\n`);
         return routine;
@@ -490,8 +598,11 @@ export async function runRoutineGenerationLoop({
       chatSessionId,
       routineData: candidateRoutine,
       status: "REJECTED",
-      reviewNotes: feedbackNotes ? { feedback: feedbackNotes } : undefined,
+      reviewNotes: feedbackNotes ? { feedback: feedbackNotes } : null,
     });
+    if (!routine) {
+      throw new Error("Routine could not be saved to database");
+    }
     return routine;
   }
 

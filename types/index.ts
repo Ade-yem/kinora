@@ -20,6 +20,26 @@ export interface RoutineExercise {
   shortDemoVideoUrl?: string | null;
 }
 
+export interface ExerciseInstruction {
+  setup: {
+    posture_and_alignment: string;
+    grip_and_stance: string;
+  },
+  execution: {
+    phase_by_phase_steps: string;
+    range_of_motion: string;
+    tempo: string;
+  },
+  breathing_technique: {
+    inhale: string;
+    exhale: string;
+    key_rule: string;
+  },
+  safety_and_common_mistakes: string[];
+}
+
+
+
 export interface ExerciseDetail {
   id: string;
   name: string;
@@ -35,7 +55,7 @@ export interface ExerciseDetail {
   posture: string | null;
   grip: string | null;
   bodyRegion: string | null;
-  instructions: any | null;
+  instructions: ExerciseInstruction;
 }
 
 export type RoutineStatus = "empty" | "forming" | "ready" | "finalized";
@@ -77,6 +97,7 @@ export interface UserProfileData {
   injuries: unknown;
   injuriesNotes: string | null;
   unitsPreference: string;
+  logoStyle: "pulse-bubble" | "rep-loop" | "signal-bars";
 }
 
 export interface RoutineSummary {
@@ -87,6 +108,13 @@ export interface RoutineSummary {
   dayIndex: number | null;
   totalDays: number | null;
   updatedAt: string;
+  programId?: string | null;
+  logs?: {
+    id: string;
+    performedAt: string;
+    durationSeconds: number | null;
+    totalVolumeKg: number | null;
+  }[];
 }
 
 export interface RecentPr {

@@ -48,11 +48,28 @@ export function ExerciseDetailSheet() {
     : (dbExercise?.inDepthExplanationVideoUrl ?? null);
   const embedUrl = getYoutubeEmbedUrl(videoUrl);
 
-  let parsedInstructions: any = null;
+  let parsedInstructions: {
+    setup?: {
+      posture_and_alignment?: string;
+      grip_and_stance?: string;
+    };
+    execution?: {
+      phase_by_phase_steps?: string;
+      range_of_motion?: string;
+      tempo?: string;
+    };
+    breathing_technique?: {
+      inhale?: string;
+      exhale?: string;
+      key_rule?: string;
+    };
+    safety_and_common_mistakes?: unknown;
+  } | null = null;
+
   if (dbExercise?.instructions) {
-    if (typeof dbExercise.instructions === "object") {
-      parsedInstructions = dbExercise.instructions;
-    } else {
+    if (typeof dbExercise.instructions === "object" && dbExercise.instructions !== null) {
+      parsedInstructions = dbExercise.instructions as unknown as typeof parsedInstructions;
+    } else if (typeof dbExercise.instructions === "string") {
       try {
         parsedInstructions = JSON.parse(dbExercise.instructions);
       } catch (e) {
@@ -67,30 +84,32 @@ export function ExerciseDetailSheet() {
   if (parsedInstructions?.safety_and_common_mistakes) {
     const mistakes = parsedInstructions.safety_and_common_mistakes;
     if (Array.isArray(mistakes)) {
-      mistakes.forEach((item: string) => {
-        if (item.toLowerCase().startsWith("what to avoid:") || item.toLowerCase().startsWith("what to avoid")) {
-          const content = item.replace(/^what\s+to\s+avoid:\s*/i, "");
+      mistakes.forEach((item: unknown) => {
+        const strItem = String(item);
+        if (strItem.toLowerCase().startsWith("what to avoid:") || strItem.toLowerCase().startsWith("what to avoid")) {
+          const content = strItem.replace(/^what\s+to\s+avoid:\s*/i, "");
           whatToAvoid = content.split(";").map((s) => s.trim()).filter(Boolean);
-        } else if (item.toLowerCase().startsWith("modifications:") || item.toLowerCase().startsWith("modifications")) {
-          const content = item.replace(/^modifications:\s*/i, "");
+        } else if (strItem.toLowerCase().startsWith("modifications:") || strItem.toLowerCase().startsWith("modifications")) {
+          const content = strItem.replace(/^modifications:\s*/i, "");
           modifications = content.split(";").map((s) => s.trim()).filter(Boolean);
         } else {
-          whatToAvoid.push(item);
+          whatToAvoid.push(strItem);
         }
       });
-    } else if (typeof mistakes === "object") {
-      if (Array.isArray(mistakes.what_to_avoid)) {
-        whatToAvoid = mistakes.what_to_avoid;
+    } else if (mistakes && typeof mistakes === "object") {
+      const mistakesObj = mistakes as { what_to_avoid?: unknown[]; modifications?: unknown[] };
+      if (Array.isArray(mistakesObj.what_to_avoid)) {
+        whatToAvoid = mistakesObj.what_to_avoid.map(String);
       }
-      if (Array.isArray(mistakes.modifications)) {
-        modifications = mistakes.modifications;
+      if (Array.isArray(mistakesObj.modifications)) {
+        modifications = mistakesObj.modifications.map(String);
       }
     }
   }
 
   return (
     <div
-      className="fixed inset-0 z-20 flex items-end justify-center bg-surface-ink/65 px-0"
+      className="fixed inset-0 flex items-end justify-center bg-surface-ink/65 px-0 z-100"
       role="dialog"
       aria-modal="true"
       aria-label={`${exercise.name} details`}

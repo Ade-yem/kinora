@@ -1,11 +1,21 @@
 import Link from "next/link";
+import { Home, MessageSquare, BarChart2, User } from "lucide-react";
+import type { ComponentType } from "react";
 
-type NavKey = "home" | "chat" | "progress";
+type NavKey = "home" | "chat" | "progress" | "profile";
 
-const ITEMS: { key: NavKey; label: string; icon: string; href: string }[] = [
-  { key: "home", label: "Home", icon: "🏠", href: "/home" },
-  { key: "chat", label: "Chat", icon: "💬", href: "/chat" },
-  { key: "progress", label: "Progress", icon: "📈", href: "/progress" },
+interface NavItem {
+  key: NavKey;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+  href: string;
+}
+
+const ITEMS: NavItem[] = [
+  { key: "home", label: "Home", icon: Home, href: "/home" },
+  { key: "chat", label: "Chat", icon: MessageSquare, href: "/chat" },
+  { key: "progress", label: "Progress", icon: BarChart2, href: "/progress" },
+  { key: "profile", label: "Profile", icon: User, href: "/profile" },
 ];
 
 export function BottomNav({ active }: { active: NavKey }) {
@@ -16,9 +26,10 @@ export function BottomNav({ active }: { active: NavKey }) {
         const className = `flex flex-col items-center gap-1 text-[11px] font-bold ${
           isActive ? "text-coral-text" : "text-ink/40"
         }`;
+        const Icon = item.icon;
         return (
           <Link key={item.key} href={item.href} className={className} aria-current={isActive ? "page" : undefined}>
-            <span aria-hidden>{item.icon}</span>
+            <Icon className="h-5 w-5" aria-hidden />
             {item.label}
           </Link>
         );
@@ -26,3 +37,4 @@ export function BottomNav({ active }: { active: NavKey }) {
     </nav>
   );
 }
+

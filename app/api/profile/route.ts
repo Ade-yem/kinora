@@ -36,6 +36,7 @@ async function getProfile() {
     injuries: profile.injuries,
     injuriesNotes: profile.injuriesNotes,
     unitsPreference: profile.unitsPreference,
+    logoStyle: profile.logoStyle,
     updatedAt: profile.updatedAt,
   });
 }
@@ -61,6 +62,7 @@ async function updateProfile(request: NextRequest) {
     sessionDurationMinutes,
     injuriesNotes,
     unitsPreference,
+    logoStyle,
     injuries,
   } = parsed.data;
 
@@ -74,6 +76,7 @@ async function updateProfile(request: NextRequest) {
       sessionDurationMinutes,
       injuriesNotes,
       unitsPreference,
+      logoStyle,
       injuries,
     },
     update: {
@@ -83,6 +86,7 @@ async function updateProfile(request: NextRequest) {
       sessionDurationMinutes,
       injuriesNotes,
       unitsPreference,
+      logoStyle,
       injuries,
     },
   });
@@ -98,6 +102,7 @@ async function updateProfile(request: NextRequest) {
       injuries: profile.injuries,
       injuriesNotes: profile.injuriesNotes,
       unitsPreference: profile.unitsPreference,
+      logoStyle: profile.logoStyle,
       updatedAt: profile.updatedAt,
     },
     200

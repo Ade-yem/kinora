@@ -10,6 +10,12 @@ export interface ProfileUpdateInput {
   sessionDurationMinutes?: number;
   injuriesNotes?: string;
   unitsPreference?: string;
+  logoStyle?: "pulse-bubble" | "rep-loop" | "signal-bars";
+  injuries?: {
+    bodyPart: string;
+    severity?: "mild" | "moderate" | "severe";
+    note?: string;
+  }[];
 }
 
 export interface ProfileSlice {

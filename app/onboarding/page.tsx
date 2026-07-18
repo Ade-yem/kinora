@@ -31,14 +31,17 @@ export default function OnboardingPage() {
   useEffect(() => {
     if (status === "authenticated" && profileStatus === "loaded") {
       if (profile?.goal) {
-        router.push("/chat");
+        router.push("/home");
       } else {
         setStep(1);
       }
     }
   }, [status, profileStatus, profile, router]);
 
-  if (status === "loading" || (status === "authenticated" && profileStatus === "loading")) {
+  if (
+    status === "loading" ||
+    (status === "authenticated" && profileStatus !== "loaded" && profileStatus !== "error")
+  ) {
     return (
       <main className="mx-auto flex min-h-dvh w-full max-w-md flex-1 flex-col items-center justify-center px-6 py-8">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-ink/10 border-t-volt"></div>
@@ -52,14 +55,14 @@ export default function OnboardingPage() {
         <ProgressBar total={TOTAL_STEPS} current={step + 1} />
       </div>
 
-      {step === 0 && <SignupStep onContinue={() => setStep(1)} />}
+      {step === 0 && <SignupStep />}
       {step === 1 && (
         <GoalStep
           goal={goal}
           onSelect={setGoal}
           onContinue={async () => {
             if (goal) await updateProfile({ goal });
-            router.push("/chat");
+            router.push("/home");
           }}
         />
       )}

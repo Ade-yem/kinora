@@ -29,6 +29,7 @@ export interface WorkoutSlice {
   completeSet: (performed?: { reps?: number; seconds?: number }) => void;
   finishRest: () => void;
   submitWorkout: () => Promise<void>;
+  savePartialWorkout: () => Promise<void>;
 }
 
 function recordEntry(
@@ -96,6 +97,11 @@ export const createWorkoutSlice: StateCreator<AppState, [], [], WorkoutSlice> = 
   },
 
   finishRest: () => set((s) => ({ workout: { ...s.workout, phase: "exercising" } })),
+
+  savePartialWorkout: async () => {
+    set((s) => ({ workout: { ...s.workout, phase: "complete" } }));
+    await get().submitWorkout();
+  },
 
   submitWorkout: async () => {
     const state = get();
