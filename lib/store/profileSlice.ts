@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
 import type { AppState } from "./types";
-import type { Location, UserProfileData } from "@/lib/types";
+import type { Location, UserProfileData } from "@/types";
 import { apiGet, apiPatch } from "@/lib/api-client";
 
 export interface ProfileUpdateInput {

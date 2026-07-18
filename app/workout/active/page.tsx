@@ -20,10 +20,6 @@ export default function ActiveWorkoutPage() {
   const finishRest = useAppStore((s) => s.finishRest);
   const openExerciseDetail = useAppStore((s) => s.openExerciseDetail);
 
-  useEffect(() => {
-    if (routine.exercises.length === 0) router.replace("/chat");
-  }, [routine.exercises.length, router]);
-
   if (routine.exercises.length === 0) return null;
 
   if (workout.phase === "complete") {

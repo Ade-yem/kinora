@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/Button";
-import type { Goal } from "@/lib/types";
+import type { Goal } from "@/types";
 
 const GOAL_SUGGESTIONS = ["Build Muscle", "Lose Fat", "Get Stronger", "Stay Active"];
 

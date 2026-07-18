@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 
 const OPENING_GREETING =
-  "Yo! Let's build today's session ⚡ What are we training, and where are you working out — home or gym?";
+  "Yo! How are you doing today?";
 
 export async function resolveChatSession(userId: string) {
   const existing = await prisma.chatSession.findFirst({

@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
 import type { AppState } from "./types";
-import type { Goal, OnboardingProfile } from "@/lib/types";
+import type { Goal, OnboardingProfile } from "@/types";
 
 export interface OnboardingSlice {
   onboarding: OnboardingProfile;

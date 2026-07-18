@@ -4,6 +4,7 @@ export const RoutineListQuerySchema = z.object({
   status: z
     .enum(["empty", "forming", "ready", "finalized"])
     .optional(),
+  chatSessionId: z.string().optional(),
   page: z.string().default("1").transform(Number).pipe(z.number().positive()),
   pageSize: z
     .string()

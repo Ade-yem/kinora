@@ -39,6 +39,10 @@ export function createChatStream({
         controller.enqueue(encoder.encode(sseFrame("delta", { text })));
       };
 
+      const enqueueSseThought = (text: string) => {
+        controller.enqueue(encoder.encode(sseFrame("thought", { text })));
+      };
+
       try {
         if (!DEEPSEEK_MODEL) {
           throw new Error("DEEPSEEK_MODEL is not configured");
@@ -51,6 +55,7 @@ export function createChatStream({
         ];
 
         let finalText = "";
+        let hasExecutedPatch = false;
 
         for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
           const completion = await llmClient.chat.completions.create({
@@ -101,12 +106,15 @@ export function createChatStream({
           });
 
           for (const call of callList) {
+            if (call.name === "modify_workout_routine") {
+              hasExecutedPatch = true;
+            }
             const result = await executeToolCall(
               call.name,
               call.args,
               userId,
               chatSessionId,
-              enqueueSseDelta
+              enqueueSseThought
             );
             messages.push({
               role: "tool",
@@ -121,11 +129,18 @@ export function createChatStream({
           ? finalText.replace(new RegExp(`^\\s*${GUARDRAIL_MARKER}\\s*`, "i"), "")
           : finalText;
 
+        let kind: "TEXT" | "GUARDRAIL" | "PATCH" = "TEXT";
+        if (isGuardrail) {
+          kind = "GUARDRAIL";
+        } else if (hasExecutedPatch) {
+          kind = "PATCH";
+        }
+
         const saved = await prisma.chatMessage.create({
           data: {
             chatSessionId,
             role: "COACH",
-            kind: isGuardrail ? "GUARDRAIL" : "TEXT",
+            kind,
             text: cleanedText,
           },
         });
@@ -134,7 +149,7 @@ export function createChatStream({
           encoder.encode(
             sseFrame("done", {
               messageId: saved.id,
-              kind: isGuardrail ? "guardrail" : "text",
+              kind: kind.toLowerCase(),
               createdAt: saved.createdAt,
             })
           )

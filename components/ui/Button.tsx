@@ -19,7 +19,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   href?: string;
 }
 
-export function Button({ variant = "primary", href, className = "", ...props }: ButtonProps) {
+export function Button({ variant = "primary", href, className = "cursor-pointer", ...props }: ButtonProps) {
   const classes = `${baseClasses} ${variantClasses[variant]} ${className}`;
 
   if (href) {

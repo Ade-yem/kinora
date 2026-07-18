@@ -119,7 +119,8 @@ You MUST follow these rules:
    - 45 minutes: 5-6 exercises (approx. 15-18 total sets).
    - 60+ minutes: 6-8 exercises (approx. 18-24 total sets).
 4. Do NOT include exercises that aggravate the user's listed injuries (e.g., no overhead press for shoulder pain, no heavy deadlifts/squats for lower back pain).
-5. Output your final response as a JSON object inside a \`\`\`json \`\`\` block matching this format:
+5. If an existing routine is provided in the context, modify that routine to satisfy the user's requested adjustment. Keep unchanged exercises as they are (preserving their exerciseId and parameters), only replace, insert, or remove exercises as needed to address the feedback. Keep the overall duration, equipment limits, and injury notes in mind.
+6. Output your final response as a JSON object inside a \`\`\`json \`\`\` block matching this format:
 {
   "title": "Routine Title (e.g. Day 1: Upper Body Push)",
   "subtitle": "Short descriptive subtitle of the routine focus",
@@ -155,18 +156,22 @@ async function runGenerator(
   userProfile: any,
   goal: string,
   feedbackLoopNotes: string | null,
-  onProgress: (text: string) => void
+  onProgress: (text: string) => void,
+  feedback?: string,
+  currentRoutineContext?: string
 ): Promise<string> {
   const messages: any[] = [
     { role: "system", content: GENERATOR_SYSTEM_PROMPT },
     {
       role: "user",
-      content: `Please generate a workout routine for the following profile:
+      content: `Please generate/modify a workout routine for the following profile:
 - Goal: ${userProfile.goal || "Not specified"}
 - Location: ${userProfile.location || "Not specified"}
 - Available Equipment: ${userProfile.equipment?.join(", ") || "None"}
 - Session Duration: ${userProfile.sessionDurationMinutes || 45} minutes
 - Injuries/Notes: ${userProfile.injuriesNotes || "None"}
+${currentRoutineContext ? `\n${currentRoutineContext}` : ""}
+${feedback ? `\nUser's Requested Modification: "${feedback}"` : ""}
 ${feedbackLoopNotes ? `\nFeedback from Reviewer/Previous attempt:\n${feedbackLoopNotes}` : ""}`,
     },
   ];
@@ -312,19 +317,57 @@ async function saveRoutineToDb({
   const exercises = routineData.exercises || [];
 
   return prisma.$transaction(async (tx: any) => {
-    // 1. Create WorkoutRoutine
-    const routine = await tx.workoutRoutine.create({
-      data: {
-        userId,
-        chatSessionId,
-        title,
-        subtitle,
-        status,
-        reviewNotes: reviewNotes || (status === "REJECTED" ? { error: "Rejected by reviewer" } : null),
-        dayIndex: routineData.dayIndex ? Number(routineData.dayIndex) : 1,
-        totalDays: routineData.totalDays ? Number(routineData.totalDays) : 1,
+    // Check if there is an existing routine for this chat session - even after a routine is finalized, it can still be edited
+    const existingRoutine = await tx.workoutRoutine.findFirst({
+      where: {
+        chatSessionId
       },
     });
+
+    let routine;
+    if (existingRoutine) {
+      routine = await tx.workoutRoutine.update({
+        where: { id: existingRoutine.id },
+        data: {
+          title,
+          subtitle,
+          status,
+          reviewNotes: reviewNotes || (status === "REJECTED" ? { error: "Rejected by reviewer" } : null),
+          dayIndex: routineData.dayIndex ? Number(routineData.dayIndex) : 1,
+          totalDays: routineData.totalDays ? Number(routineData.totalDays) : 1,
+        },
+      });
+
+      // Clear previous routine items to avoid duplicates or trailing items
+      await tx.routineItem.deleteMany({
+        where: { routineId: existingRoutine.id },
+      });
+    } else {
+      routine = await tx.workoutRoutine.create({
+        data: {
+          userId,
+          chatSessionId,
+          title,
+          subtitle,
+          status,
+          reviewNotes: reviewNotes || (status === "REJECTED" ? { error: "Rejected by reviewer" } : null),
+          dayIndex: routineData.dayIndex ? Number(routineData.dayIndex) : 1,
+          totalDays: routineData.totalDays ? Number(routineData.totalDays) : 1,
+        },
+      });
+    }
+
+    // Automatically update the ChatSession title if it is default ("New Chat") or empty
+    const session = await tx.chatSession.findUnique({
+      where: { id: chatSessionId },
+      select: { title: true },
+    });
+    if (session && (!session.title || session.title === "New Chat" || session.title.trim() === "")) {
+      await tx.chatSession.update({
+        where: { id: chatSessionId },
+        data: { title },
+      });
+    }
 
     // 2. Create RoutineItems
     for (let i = 0; i < exercises.length; i++) {
@@ -350,16 +393,42 @@ export async function runRoutineGenerationLoop({
   userId,
   chatSessionId,
   onProgress,
+  feedback,
 }: {
   userId: string;
   chatSessionId: string;
   onProgress: (text: string) => void;
+  feedback?: string;
 }) {
   onProgress("[System] Starting routine generator loop...\n");
 
   const profile = await prisma.userProfile.findUnique({ where: { userId } });
   if (!profile) {
     throw new Error("User profile not found");
+  }
+
+  let routineContext = "";
+  if (feedback) {
+    const latestRoutine = await prisma.workoutRoutine.findFirst({
+      where: { chatSessionId, status: "APPROVED" },
+      orderBy: { createdAt: "desc" },
+      include: {
+        items: {
+          include: { exercise: true },
+          orderBy: { order: "asc" },
+        },
+      },
+    });
+
+    if (latestRoutine) {
+      routineContext = `\nActive Routine to modify (ID: ${latestRoutine.id}):\n`;
+      routineContext += `Title: ${latestRoutine.title}\n`;
+      routineContext += `Subtitle: ${latestRoutine.subtitle || ""}\n`;
+      routineContext += `Exercises:\n`;
+      latestRoutine.items.forEach((item: any, index: number) => {
+        routineContext += `${index + 1}. ${item.exercise.name} (ID: ${item.exerciseId}) - ${item.sets} sets x ${item.targetReps ?? item.targetSeconds ?? 10} reps/secs\n`;
+      });
+    }
   }
 
   let attempt = 0;
@@ -371,7 +440,14 @@ export async function runRoutineGenerationLoop({
     onProgress(`\n[System] Actor-Critic loop iteration ${attempt}...\n`);
 
     try {
-      const generatorOutput = await runGenerator(profile, profile.goal || "", feedbackNotes, onProgress);
+      const generatorOutput = await runGenerator(
+        profile,
+        profile.goal || "",
+        feedbackNotes,
+        onProgress,
+        feedback,
+        routineContext
+      );
       candidateRoutine = extractJson(generatorOutput);
       onProgress(`[Generator] Routine candidate proposed: "${candidateRoutine.title}"\n`);
     } catch (e) {

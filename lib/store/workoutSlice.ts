@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
 import type { AppState } from "./types";
-import type { WorkoutPhase } from "@/lib/types";
+import type { WorkoutPhase } from "@/types";
 import { apiPost } from "@/lib/api-client";
 
 interface WorkoutSetEntry {
@@ -107,11 +107,21 @@ export const createWorkoutSlice: StateCreator<AppState, [], [], WorkoutSlice> = 
       ? Math.round((Date.now() - state.workout.startedAt) / 1000)
       : undefined;
 
+    const totalReps = state.workout.entries.reduce((sum, entry) => {
+      return sum + entry.sets.reduce((setSum, set) => setSum + (set.reps || 0), 0);
+    }, 0);
+    const totalSeconds = state.workout.entries.reduce((sum, entry) => {
+      return sum + entry.sets.reduce((setSum, set) => setSum + (set.seconds || 0), 0);
+    }, 0);
+    // 15kg per rep, or 0.8kg equivalent per second hold
+    const totalVolumeKg = totalReps * 15 + totalSeconds * 0.8;
+
     try {
       await apiPost("/api/workouts", {
         routineId: state.routine.id,
         durationSeconds,
         entries: state.workout.entries,
+        totalVolumeKg,
       });
     } catch {
       // Best-effort: the workout still completed locally for the user even if logging failed.

@@ -168,7 +168,7 @@ model ChatMessage {
 
 model WorkoutRoutine {
   id            String      @id @default(cuid())
-  chatSessionId String      @map("chat_session_id")
+  chatSessionId String?      @map("chat_session_id")
   userId        String      @map("user_id")
   title         String
   subtitle      String?
@@ -179,7 +179,7 @@ model WorkoutRoutine {
   dayIndex      Int?        @map("day_index")
   totalDays     Int?        @map("total_days")
 
-  chatSession ChatSession @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
+  chatSession ChatSession? @relation(fields: [chatSessionId], references: [id], onDelete: SetNull)
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   items       RoutineItem[]
   logs        WorkoutLog[]

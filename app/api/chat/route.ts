@@ -9,7 +9,7 @@ import { chatRoleToApi, chatMessageKindToApi } from "@/lib/api/mappers";
 import { resolveChatSession, ensureOpeningMessage } from "@/lib/chat/session";
 import { createChatStream } from "@/lib/chat/stream";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -17,10 +17,21 @@ export async function GET() {
       return respondError(ApiError.unauthorized());
     }
 
-    const { session: chatSession, isNew } = await resolveChatSession(session.user.id);
-
-    if (isNew) {
-      await ensureOpeningMessage(chatSession.id);
+    const sessionId = request.nextUrl.searchParams.get("sessionId");
+    let chatSession;
+    if (sessionId) {
+      chatSession = await prisma.chatSession.findFirst({
+        where: { id: sessionId, userId: session.user.id },
+      });
+      if (!chatSession) {
+        return respondError(ApiError.notFound("Session not found"));
+      }
+    } else {
+      const { session: resolvedSession, isNew } = await resolveChatSession(session.user.id);
+      chatSession = resolvedSession;
+      if (isNew) {
+        await ensureOpeningMessage(chatSession.id);
+      }
     }
 
     const messages = await prisma.chatMessage.findMany({
@@ -59,8 +70,19 @@ export async function POST(request: NextRequest) {
       return respondError(parsed.error);
     }
 
-    const { message } = parsed.data;
-    const { session: chatSession } = await resolveChatSession(session.user.id);
+    const { message, sessionId } = parsed.data;
+    let chatSession;
+    if (sessionId) {
+      chatSession = await prisma.chatSession.findFirst({
+        where: { id: sessionId, userId: session.user.id },
+      });
+      if (!chatSession) {
+        return respondError(ApiError.notFound("Session not found"));
+      }
+    } else {
+      const resolved = await resolveChatSession(session.user.id);
+      chatSession = resolved.session;
+    }
 
     // Fetch history before persisting the new user message — it's appended
     // separately when building the LLM's message list (see lib/chat/stream.ts).

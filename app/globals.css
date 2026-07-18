@@ -36,3 +36,11 @@ body {
 ::selection {
   background: oklch(0.78 0.19 130 / 0.4);
 }
+
+.hide-scrollbar, #chat-input {
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar, #chat-input::-webkit-scrollbar {
+  display: none;
+}

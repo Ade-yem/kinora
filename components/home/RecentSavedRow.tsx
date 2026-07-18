@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { RoutineSummary } from "@/lib/types";
+import type { RoutineSummary } from "@/types";
 
 const tileClass =
   "flex flex-1 flex-col items-center justify-center rounded-2xl bg-[repeating-linear-gradient(135deg,oklch(0.22_0.02_60/0.05),oklch(0.22_0.02_60/0.05)_8px,oklch(0.22_0.02_60/0.09)_8px,oklch(0.22_0.02_60/0.09)_16px)] px-2 py-5 text-center text-xs font-semibold text-ink/60";

@@ -1,3 +1,4 @@
+---
 # Product Requirement Document (PRD): AI Fitness Trainer MVP
 
 ## Project Overview
@@ -26,6 +27,7 @@ An AI-driven mobile fitness application that leverages a proprietary database of
 * If no injuries are stated, the agent proceeds immediately to database matching to reduce friction.
 
 
+
 #### User Story 1.2: Real-time Live Routine Preview
 
 * **As a** user waiting for my routine,
@@ -34,7 +36,6 @@ An AI-driven mobile fitness application that leverages a proprietary database of
 * **Acceptance Criteria:**
 * The preview must update asynchronously as the agent "thinks" or confirms the plan.
 * Each exercise in the preview must display: Name, Target Muscle, Sets $\times$ Reps (or Time), and Equipment required.
-
 
 
 ---
@@ -76,7 +77,18 @@ An AI-driven mobile fitness application that leverages a proprietary database of
 
 
 
-#### User Story 3.2: Active Workout Tracking with Time/Set Trackers
+#### User Story 3.2: Multi-Day Routine Preview
+
+* **As a** user looking for a structured training split,
+* **I want** to ask for a multi-day program (e.g., a 7-day bodyweight split) and see it populated cleanly across calendar tabs,
+* **So that** I can map out and adjust my entire week's fitness plan at once.
+* **Acceptance Criteria:**
+* The agent generates a parent program containing sequentially indexed sub-routines (Day 1, Day 2, etc.).
+* The Preview Component displays a multi-day tab selector or horizontal scroll, allowing the user to examine and modify each day individually prior to finalization.
+
+
+
+#### User Story 3.3: Active Workout Tracking with Time/Set Trackers
 
 * **As a** user actively working out,
 * **I want** a clean UI displaying one exercise at a time with built-in rest timers, a way to mark sets as done, and simple navigation controls to jump between movements,
@@ -87,9 +99,9 @@ An AI-driven mobile fitness application that leverages a proprietary database of
 
 
 
-#### User Story 3.3: Multi-Day Routine Persistence & Continuity
+#### User Story 3.4: Multi-Day Routine Persistence & Continuity
 
-* **As a** user on a multi-day program (e.g., a 7-day bodyweight split),
+* **As a** user on a multi-day program,
 * **I want** the app to save my current day's progress and automatically queue up the next chronological day's preview when I open the app tomorrow,
 * **So that** I maintain consistency without restarting the conversation from scratch.
 * **Acceptance Criteria:**
@@ -113,7 +125,35 @@ An AI-driven mobile fitness application that leverages a proprietary database of
 * **I want** to give direct feedback (e.g., *"Day 1 was way too hard on my shoulders"* or *"The weights were too light"*),
 * **So that** the agent alters subsequent days of my routine automatically based on my performance.
 * **Acceptance Criteria:**
-* The agent processes the feedback text, updates the underlying difficulty/volume weights for that user profile, and applies those modified parameters when generating or pulling up the routine for Day 2.
+* The agent processes the feedback text, updates the underlying difficulty/volume weights for that user profile, and applies those modified parameters to update the routine for Day 2.
+
+
+
+---
+
+### Epic 5: Workspace Layout & Navigation (Chat & Library Core)
+
+#### User Story 5.1: Multi-Session Chat
+
+* **As a** user managing different fitness tracks,
+* **I want** to create, switch between, and delete multiple independent chat conversations with the AI trainer,
+* **So that** I can isolate separate discussions (e.g., an ongoing gym split chat vs. a recovery/stretching chat).
+* **Acceptance Criteria:**
+* The app provides a sidebar/drawer displaying historical chat session titles.
+* Deleting a chat session cascades and cleans up unfinalized draft routines associated with it.
+* **Viewport Pinning:** The chat input field must remain pinned to the bottom of the viewport via CSS `position: sticky` or fixed bounds, remaining instantly accessible regardless of scroll depth or message volume.
+
+
+
+#### User Story 5.2: Finalized Routine Hub & Page Navigation
+
+* **As a** user who has completed a setup conversation,
+* **I want** to see a distinct "Finalized Workout Card" injected directly into the chat stream with a prominent button to view the routine page,
+* **So that** I can transition seamlessly from planning into execution.
+* **Acceptance Criteria:**
+* Clicking the card button route-navigates the user to `/workouts/[routineId]`.
+* The target workout page must feature an overlay sidebar containing a list of all historical finalized routines for immediate jumping, routine switching, or deletion.
+* Each routine overview page must provide a "View Source Chat" deep-link back to the exact historical `sessionId` context that generated it, allowing users to easily resume the conversation thread.
 
 
 

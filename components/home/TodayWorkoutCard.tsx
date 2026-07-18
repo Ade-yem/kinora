@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/Button";
-import type { Routine, WorkoutPhase } from "@/lib/types";
+import type { Routine, WorkoutPhase } from "@/types";
 
 export function TodayWorkoutCard({
   routine,

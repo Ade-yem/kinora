@@ -9,7 +9,7 @@ import {
   mapRoutineItemToExercise,
   routineStatusToApi,
 } from "@/lib/api/mappers";
-import type { Routine } from "@/lib/types";
+import type { Routine } from "@/types";
 
 async function getRoutine(routineId: string, userId: string) {
   const routine = await prisma.workoutRoutine.findUnique({
@@ -19,6 +19,7 @@ async function getRoutine(routineId: string, userId: string) {
         include: { exercise: true },
         orderBy: { order: "asc" },
       },
+      chatSession: true,
     },
   });
 
@@ -38,6 +39,8 @@ async function getRoutine(routineId: string, userId: string) {
     exercises: routine.items.map(mapRoutineItemToExercise),
     dayIndex: routine.dayIndex,
     totalDays: routine.totalDays,
+    chatSessionId: routine.chatSessionId,
+    chatSessionTitle: routine.chatSession?.title || "Workout Session",
   };
 
   return response;
@@ -111,7 +114,10 @@ export async function PATCH(
       const updated = await prisma.workoutRoutine.update({
         where: { id },
         data: { finalizedAt: new Date() },
-        include: { items: { include: { exercise: true }, orderBy: { order: "asc" } } },
+        include: {
+          items: { include: { exercise: true }, orderBy: { order: "asc" } },
+          chatSession: true,
+        },
       });
 
       const routineResponse: Routine = {
@@ -126,12 +132,45 @@ export async function PATCH(
         exercises: updated.items.map(mapRoutineItemToExercise),
         dayIndex: updated.dayIndex,
         totalDays: updated.totalDays,
+        chatSessionId: updated.chatSessionId,
+        chatSessionTitle: updated.chatSession?.title || "Workout Session",
       };
 
       return respondOk(routineResponse);
     }
 
     return respondError(ApiError.badRequest("Invalid action"));
+  } catch (error) {
+    return respondError(error);
+  }
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return respondError(ApiError.unauthorized());
+    }
+
+    const { id } = await params;
+
+    const routine = await prisma.workoutRoutine.findFirst({
+      where: { id, userId: session.user.id },
+    });
+
+    if (!routine) {
+      return respondError(ApiError.notFound("Routine not found"));
+    }
+
+    await prisma.workoutRoutine.delete({
+      where: { id },
+    });
+
+    return respondOk({ deleted: true });
   } catch (error) {
     return respondError(error);
   }

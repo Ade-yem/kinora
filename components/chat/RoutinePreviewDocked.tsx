@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
-import type { Routine } from "@/lib/types";
+import type { Routine } from "@/types";
 
 export function RoutinePreviewDocked({
   routine,
@@ -15,7 +15,7 @@ export function RoutinePreviewDocked({
     <button
       type="button"
       onClick={onExpand}
-      className="fixed inset-x-4 bottom-24 mx-auto w-full max-w-[calc(400px-2rem)] text-left lg:hidden"
+      className="w-full text-left lg:hidden cursor-pointer block focus:outline-none mb-1 transition-all duration-200 hover:opacity-95"
       aria-label="Expand routine preview"
     >
       <Card className="border border-ink/6 px-5 pb-5 pt-3">

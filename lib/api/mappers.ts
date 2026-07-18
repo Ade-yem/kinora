@@ -1,4 +1,4 @@
-import type { RoutineExercise, RoutineStatus as FrontendRoutineStatus } from "@/lib/types";
+import type { RoutineExercise, RoutineStatus as FrontendRoutineStatus } from "@/types";
 
 // DB enum to frontend union mappings
 const LOCATION_TO_API: Record<string, string> = {
@@ -65,11 +65,12 @@ export function mapRoutineItemToExercise(
     target:
       item.targetReps !== null
         ? {
-            reps: item.targetReps,
-            side: item.targetSide ?? undefined,
-          }
+          reps: item.targetReps,
+          side: item.targetSide ?? undefined,
+        }
         : item.targetSeconds !== null
           ? { seconds: item.targetSeconds }
           : { reps: 10 },
+    shortDemoVideoUrl: item.exercise.shortDemoVideoUrl,
   };
 }

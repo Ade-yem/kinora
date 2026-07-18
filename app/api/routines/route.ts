@@ -73,10 +73,13 @@ export async function GET(request: NextRequest) {
       return respondError(parsed.error);
     }
 
-    const { page, pageSize, status } = parsed.data;
+    const { page, pageSize, status, chatSessionId } = parsed.data;
     const { skip, take } = parsePagination({ page: String(page), pageSize: String(pageSize) });
 
-    const where: Record<string, unknown> = { userId: session.user.id };
+    const where: Record<string, any> = { userId: session.user.id };
+    if (chatSessionId) {
+      where.chatSessionId = chatSessionId;
+    }
 
     // `status` is a derived value (from `status`/`finalizedAt`/`items.length`, not a raw
     // column), so it can't be pushed into the Prisma `where` clause. When it's requested,

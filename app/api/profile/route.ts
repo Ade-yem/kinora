@@ -14,12 +14,16 @@ async function getProfile() {
     throw ApiError.unauthorized();
   }
 
-  const profile = await prisma.userProfile.findUnique({
+  let profile = await prisma.userProfile.findUnique({
     where: { userId: session.user.id },
   });
 
   if (!profile) {
-    throw ApiError.notFound("Profile not found");
+    profile = await prisma.userProfile.create({
+      data: {
+        userId: session.user.id,
+      },
+    });
   }
 
   return respondOk({
@@ -60,9 +64,19 @@ async function updateProfile(request: NextRequest) {
     injuries,
   } = parsed.data;
 
-  const profile = await prisma.userProfile.update({
+  const profile = await prisma.userProfile.upsert({
     where: { userId: session.user.id },
-    data: {
+    create: {
+      userId: session.user.id,
+      goal,
+      location: location ? locationFromApi(location) : undefined,
+      equipment,
+      sessionDurationMinutes,
+      injuriesNotes,
+      unitsPreference,
+      injuries,
+    },
+    update: {
       goal,
       location: location ? locationFromApi(location) : undefined,
       equipment,

@@ -104,6 +104,25 @@ export const CHAT_TOOLS: ChatCompletionTool[] = [
       parameters: { type: "object", properties: {}, additionalProperties: false },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "modify_workout_routine",
+      description:
+        "Modify or refine the user's current workout routine based on their specific feedback (e.g. swap exercises, change equipment, add/remove movements).",
+      parameters: {
+        type: "object",
+        properties: {
+          feedback: {
+            type: "string",
+            description: "The user's requested adjustment (e.g., 'Swap rows for something else', 'Add weight lifting').",
+          },
+        },
+        required: ["feedback"],
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
 async function getUserProfile(userId: string) {
@@ -197,6 +216,41 @@ async function generateWorkoutRoutine(
   }
 }
 
+async function modifyWorkoutRoutine(
+  userId: string,
+  chatSessionId: string,
+  argsJson: string,
+  onProgress: (text: string) => void
+) {
+  try {
+    let args: any;
+    try {
+      args = JSON.parse(argsJson);
+    } catch {
+      return { error: "invalid arguments" };
+    }
+    const { feedback } = args;
+    const routine = await runRoutineGenerationLoop({
+      userId,
+      chatSessionId,
+      onProgress,
+      feedback,
+    });
+    return {
+      success: true,
+      routineId: routine.id,
+      title: routine.title,
+      subtitle: routine.subtitle,
+      status: routine.status,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to modify routine",
+    };
+  }
+}
+
 export async function executeToolCall(
   name: string,
   argsJson: string,
@@ -218,6 +272,9 @@ export async function executeToolCall(
   }
   if (name === "generate_workout_routine") {
     return generateWorkoutRoutine(userId, chatSessionId, onProgress);
+  }
+  if (name === "modify_workout_routine") {
+    return modifyWorkoutRoutine(userId, chatSessionId, argsJson, onProgress);
   }
   return { error: `unknown tool: ${name}` };
 }

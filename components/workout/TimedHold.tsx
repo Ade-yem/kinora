@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ExerciseVisual } from "./ExerciseVisual";
-import type { RoutineExercise } from "@/lib/types";
+import { Info } from "lucide-react";
+import type { RoutineExercise } from "@/types";
 
 function formatSeconds(total: number): string {
   const m = Math.floor(total / 60);
@@ -47,12 +48,24 @@ export function TimedHold({
   return (
     <div className="flex flex-1 flex-col">
       <div className="mt-4">
-        <ExerciseVisual tone="coral" icon="🧘" onInfoClick={onInfoClick} />
+        <ExerciseVisual tone="coral" exercise={exercise} />
       </div>
 
-      <div className="mt-5 text-center">
-        <h1 className="font-display text-2xl font-bold">{exercise.name}</h1>
-        <p className="mt-1 text-[13px] text-cream/50">
+      <div className="mt-5 flex flex-col items-center text-center">
+        <div className="flex items-center justify-center gap-2">
+          <h1 className="font-display text-2xl font-bold">{exercise.name}</h1>
+          {onInfoClick && (
+            <button
+              type="button"
+              onClick={onInfoClick}
+              aria-label="View exercise details"
+              className="flex h-7 w-7 items-center justify-center rounded-full bg-cream/10 text-cream/60 hover:bg-cream/20 hover:text-cream transition-all cursor-pointer active:scale-90"
+            >
+              <Info className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        <p className="mt-1.5 text-[13px] text-cream/50">
           {exercise.muscle} — {exercise.equipment}
         </p>
       </div>

@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
 import type { AppState } from "./types";
-import type { StatsData } from "@/lib/types";
+import type { StatsData } from "@/types";
 import { apiGet } from "@/lib/api-client";
 
 export interface StatsSlice {
