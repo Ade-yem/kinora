@@ -20,10 +20,14 @@ if (process.env.NODE_ENV === "production") {
   });
 } else {
   if (!global.prisma) {
+    const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
+    const isRemote = connectionString?.includes("neon.tech");
     global.prisma = new PrismaClient({
       adapter: new PrismaPg(
         new Pool({
-          connectionString: process.env.DATABASE_URL,
+          connectionString,
+          // Force SSL configuration for remote Neon connections to prevent ETIMEDOUT
+          ssl: isRemote ? { rejectUnauthorized: false } : undefined,
         })
       ),
     });
