@@ -1,0 +1,14 @@
+<svg width="512" height="512" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="pulseGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="50%" stopColor="#84d086" />
+      <stop offset="50%" stopColor="#d87a4c" />
+    </linearGradient>
+  </defs>
+  <rect width="120" height="120" rx="34" fill="url(#pulseGradient)" />
+  <polygon
+    points="32,62.2 43.2,62.2 48.8,53.4 55.52,67.7 62.24,50.1 67.84,62.2 88,62.2 88,64.84 67.84,64.84 63.36,71 55.52,58.9 51.04,64.84 32,64.84"
+    fill="#fdfbf7"
+  />
+  <circle cx="99" cy="101" r="7" fill="#fdfbf7" />
+</svg>

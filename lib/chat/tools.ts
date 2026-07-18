@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { locationFromApi, locationToApi } from "@/lib/api/mappers";
 import { ProfileUpdateSchema } from "@/lib/validation/profile";
 import { getExercisesByParametersInternal, runRoutineGenerationLoop } from "./generator";
+import { checkRoutineGenerationLimit } from "../rate-limit";
 
 export const CHAT_TOOLS: ChatCompletionTool[] = [
   {
@@ -196,6 +197,16 @@ async function generateWorkoutRoutine(
   onProgress: (text: string) => void
 ) {
   try {
+    const { success, retryAfterSeconds } = await checkRoutineGenerationLimit(userId);
+    if (!success) {
+      return {
+        success: false,
+        error: "rate_limited",
+        retryAfterSeconds,
+        userGuidance: `You can generate 5 routines per hour. Please try again in ${retryAfterSeconds} seconds.`
+      };
+    }
+
     const routine = await runRoutineGenerationLoop({
       userId,
       chatSessionId,
@@ -223,6 +234,16 @@ async function modifyWorkoutRoutine(
   onProgress: (text: string) => void
 ) {
   try {
+    const { success, retryAfterSeconds } = await checkRoutineGenerationLimit(userId);
+    if (!success) {
+      return {
+        success: false,
+        error: "rate_limited",
+        retryAfterSeconds,
+        userGuidance: `You can generate 5 routines per hour. Please try again in ${retryAfterSeconds} seconds.`
+      };
+    }
+    
     let args: { feedback?: string };
     try {
       args = JSON.parse(argsJson) as { feedback?: string };

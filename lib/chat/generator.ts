@@ -541,6 +541,7 @@ export async function runRoutineGenerationLoop({
 
   while (attempt < 3) {
     attempt++;
+    console.log(JSON.stringify({ event: "routine_gen_attempt", userId, chatSessionId, attempt }));
     onProgress(`\n[System] Actor-Critic loop iteration ${attempt}...\n`);
 
     try {
@@ -555,6 +556,7 @@ export async function runRoutineGenerationLoop({
       candidateRoutine = extractJson(generatorOutput) as ProgramCandidate;
       onProgress(`[Generator] Routine candidate proposed: "${candidateRoutine.programTitle || "Workout Program"}"\n`);
     } catch (e) {
+      console.log(JSON.stringify({ event: "routine_gen_outcome", userId, chatSessionId, attempt, outcome: "generator_error" }));
       onProgress(`[Generator] Error: ${(e as Error).message}. Retrying...\n`);
       feedbackNotes = `Previous generation failed: ${(e as Error).message}`;
       continue;
@@ -578,12 +580,14 @@ export async function runRoutineGenerationLoop({
         }
 
         onProgress(`[System] Routine saved with ID: ${routine.id}\n`);
+        console.log(JSON.stringify({ event: "routine_gen_outcome", userId, chatSessionId, attempt, outcome: "approved" }));
         return routine;
       } else {
         onProgress(`[Reviewer] REJECTED because: ${reviewResult.reviewNotes}\n`);
         feedbackNotes = reviewResult.reviewNotes;
       }
     } catch (e) {
+      console.log(JSON.stringify({ event: "routine_gen_outcome", userId, chatSessionId, attempt, outcome: "reviewer_error" }));
       onProgress(`[Reviewer] Error: ${(e as Error).message}. Retrying...\n`);
       feedbackNotes = `Previous review failed: ${(e as Error).message}`;
     }
@@ -603,8 +607,10 @@ export async function runRoutineGenerationLoop({
     if (!routine) {
       throw new Error("Routine could not be saved to database");
     }
+    console.log(JSON.stringify({ event: "routine_gen_outcome", userId, chatSessionId, attempt, outcome: "rejected_exhausted" }));
     return routine;
   }
 
+  console.log(JSON.stringify({ event: "routine_gen_outcome", userId, chatSessionId, attempt, outcome: "rejected_exhausted" }));
   throw new Error("Routine generation failed to produce a candidate routine");
 }

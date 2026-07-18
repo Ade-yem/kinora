@@ -2,6 +2,7 @@ import type { StateCreator } from "zustand";
 import type { AppState } from "./types";
 import type { WorkoutPhase } from "@/types";
 import { apiPost } from "@/lib/api-client";
+import { enqueuePendingWorkoutLog } from "@/lib/offlineQueue";
 
 interface WorkoutSetEntry {
   setIndex: number;
@@ -30,6 +31,7 @@ export interface WorkoutSlice {
   finishRest: () => void;
   submitWorkout: () => Promise<void>;
   savePartialWorkout: () => Promise<void>;
+  flushPendingWorkoutLogs: () => Promise<void>;
 }
 
 function recordEntry(
@@ -129,8 +131,36 @@ export const createWorkoutSlice: StateCreator<AppState, [], [], WorkoutSlice> = 
         entries: state.workout.entries,
         totalVolumeKg,
       });
-    } catch {
-      // Best-effort: the workout still completed locally for the user even if logging failed.
+    } catch (err) {
+      // Best-effort: enqueue the payload instead of swallowing it
+      try {
+        await enqueuePendingWorkoutLog({
+          routineId: state.routine.id,
+          durationSeconds,
+          entries: state.workout.entries,
+          totalVolumeKg,
+        });
+      } catch (enqueueErr) {
+        console.error("Failed to enqueue pending workout log:", enqueueErr);
+      }
+    }
+  },
+
+  flushPendingWorkoutLogs: async () => {
+    const { getPendingWorkoutLogs, removePendingWorkoutLog } = await import("@/lib/offlineQueue");
+    const log = await getPendingWorkoutLogs();
+    if (!log) return;
+
+    try {
+      await apiPost("/api/workouts", {
+        routineId: log.routineId,
+        durationSeconds: log.durationSeconds,
+        entries: log.entries,
+        totalVolumeKg: log.totalVolumeKg,
+      });
+      await removePendingWorkoutLog();
+    } catch (err) {
+      console.error("Failed to flush pending workout log:", err);
     }
   },
 });

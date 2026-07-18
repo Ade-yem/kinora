@@ -1,10 +1,12 @@
 generator client {
   provider = "prisma-client"
   output   = "../app/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
   provider = "postgresql"
+  extensions = [pg_trgm]
 }
 
 // Auth.js / NextAuth models
@@ -55,6 +57,7 @@ model User {
   emailVerified DateTime? @map("email_verified")
   image         String?
   passwordHash  String?   @map("password_hash")
+  liabilityWaiverAcceptedAt DateTime? @map("liability_waiver_accepted_at")
 
   profile        UserProfile?
   accounts       Account[]
@@ -134,6 +137,9 @@ model Exercise {
   @@index([bodyRegion])
   @@index([primaryClassification])
   @@map("exercises")
+
+  @@index([primaryEquipment(ops: raw("gin_trgm_ops"))], type: Gin, map: "exercises_primary_equipment_trgm_idx")
+  @@index([primeMoverMuscle(ops: raw("gin_trgm_ops"))], type: Gin, map: "exercises_prime_mover_muscle_trgm_idx")
 }
 
 model ChatSession {

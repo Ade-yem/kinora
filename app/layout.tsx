@@ -20,6 +20,8 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Kinora",
   description: "The Coach That Evolves With You.",
+  appleWebApp: { capable: true, title: "Kinora", statusBarStyle: "default" },
+  icons: { apple: "/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {
@@ -28,6 +30,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

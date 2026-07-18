@@ -1,3 +1,6 @@
+export const runtime = "nodejs";
+export const maxDuration = 120;
+
 import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -8,6 +11,8 @@ import { SendChatMessageSchema } from "@/lib/validation/chat";
 import { chatRoleToApi, chatMessageKindToApi } from "@/lib/api/mappers";
 import { resolveChatSession, ensureOpeningMessage } from "@/lib/chat/session";
 import { createChatStream } from "@/lib/chat/stream";
+import { matchesEmergencyPattern, EMERGENCY_RESPONSE_TEXT } from "@/lib/chat/safetyFilter";
+
 
 export async function GET(request: NextRequest) {
   try {
@@ -82,6 +87,53 @@ export async function POST(request: NextRequest) {
     } else {
       const resolved = await resolveChatSession(session.user.id);
       chatSession = resolved.session;
+    }
+
+    if (matchesEmergencyPattern(message)) {
+      await prisma.chatMessage.create({
+        data: {
+          chatSessionId: chatSession.id,
+          role: "USER",
+          kind: "TEXT",
+          text: message,
+        },
+      });
+
+      const savedReply = await prisma.chatMessage.create({
+        data: {
+          chatSessionId: chatSession.id,
+          role: "COACH",
+          kind: "GUARDRAIL",
+          text: EMERGENCY_RESPONSE_TEXT,
+        },
+      });
+
+      const encoder = new TextEncoder();
+      const sseFrame = (event: string, data: unknown) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+
+      const stream = new ReadableStream({
+        start(controller: ReadableStreamDefaultController<Uint8Array>) {
+          controller.enqueue(encoder.encode(sseFrame("delta", { text: EMERGENCY_RESPONSE_TEXT })));
+          controller.enqueue(
+            encoder.encode(
+              sseFrame("done", {
+                messageId: savedReply.id,
+                kind: "guardrail",
+                createdAt: savedReply.createdAt,
+              })
+            )
+          );
+          controller.close();
+        },
+      });
+
+      return new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+        },
+      });
     }
 
     // Fetch history before persisting the new user message — it's appended

@@ -11,9 +11,11 @@ import { ExerciseDetailSheet } from "@/components/chat/ExerciseDetailSheet";
 import { ExitConfirmModal } from "@/components/workout/ExitConfirmModal";
 import { useAppStore } from "@/lib/store";
 import { useRequireAuth } from "@/lib/useRequireAuth";
+import { useWakeLock } from "@/lib/useWakeLock";
 
 export default function ActiveWorkoutPage() {
   useRequireAuth();
+  useWakeLock();
   const router = useRouter();
   const routine = useAppStore((s) => s.routine);
   const workout = useAppStore((s) => s.workout);

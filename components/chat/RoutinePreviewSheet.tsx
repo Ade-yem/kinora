@@ -96,13 +96,13 @@ export function RoutinePreviewSheet({
             key={exercise.id}
             type="button"
             onClick={() => onSelectExercise?.(exercise.id)}
-            className="flex items-center justify-between rounded-2xl border-[1.5px] border-ink/10 px-3.5 py-3 text-left hover:bg-ink/3 transition-colors cursor-pointer"
+            className="flex items-center justify-between gap-3 rounded-2xl border-[1.5px] border-ink/10 px-3.5 py-3 text-left hover:bg-ink/3 transition-colors cursor-pointer min-w-0"
           >
-            <div>
-              <div className="font-display text-sm font-bold">{exercise.name}</div>
-              <div className="text-xs text-ink/50">{exercise.muscle}</div>
+            <div className="min-w-0">
+              <div className="font-display text-sm font-bold truncate">{exercise.name}</div>
+              <div className="text-xs text-ink/50 truncate">{exercise.muscle}</div>
             </div>
-            <div className="text-sm font-bold text-coral-text">{formatTarget(exercise)}</div>
+            <div className="text-sm font-bold text-coral-text shrink-0 ml-auto">{formatTarget(exercise)}</div>
           </button>
         ))}
 
@@ -128,7 +128,7 @@ export function RoutinePreviewSheet({
       </div>
 
       {routine.status !== "finalized" && (
-        <div className="mt-4 flex gap-2 shrink-0">
+        <div className="mt-4 flex gap-2 shrink-0 min-w-0">
           {totalDays > 1 && (
             <button
               type="button"
@@ -140,7 +140,7 @@ export function RoutinePreviewSheet({
                 }
                 onCollapse?.()
               }}
-              className="flex-1 rounded-2xl border-[1.5px] border-ink/20 py-3 text-center font-display text-[15px] font-bold hover:bg-ink/5 transition-colors cursor-pointer bg-transparent text-ink"
+              className="flex-1 rounded-2xl border-[1.5px] border-ink/20 py-3 px-2 text-center font-display text-[15px] font-bold hover:bg-ink/5 transition-colors cursor-pointer bg-transparent text-ink truncate min-w-0"
             >
               Adjust Day {routine.dayIndex}
             </button>
@@ -149,7 +149,7 @@ export function RoutinePreviewSheet({
             variant="primary"
             disabled={!ready}
             onClick={onFinalize}
-            className={`py-3 font-display font-bold rounded-2xl flex-1 ${
+            className={`py-3 px-2 font-display font-bold rounded-2xl flex-1 truncate min-w-0 ${
               ready ? "bg-volt text-volt-text hover:bg-opacity-95" : ""
             }`}
           >

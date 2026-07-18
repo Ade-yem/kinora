@@ -46,7 +46,7 @@ function mapBodyRegion(region: string): BodyRegion | null {
 
 async function seedExercises() {
   console.log("Reading fitness_links.json...");
-  const filePath = path.join(__dirname, "../fitness_links.json");
+  const filePath = path.join(__dirname, "../assets/fitness_links.json");
   const rawData = fs.readFileSync(filePath, "utf-8");
   const exercisesData = JSON.parse(rawData);
 

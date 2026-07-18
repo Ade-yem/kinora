@@ -153,7 +153,7 @@ export default function ChatPage() {
         />
 
         {/* Pinned preview dock & input at the bottom */}
-        <div className="shrink-0 border-t border-ink/8 px-5">
+        <div className="shrink-0 border-t border-ink/8 px-5 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           {previewState === "docked" && (
             <div className="pt-2">
               <RoutinePreviewDocked routine={routine} onExpand={() => setPreviewState("full-sheet")} />

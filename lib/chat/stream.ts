@@ -6,6 +6,7 @@ import { CHAT_TOOLS, executeToolCall } from "./tools";
 
 const MAX_TOOL_TURNS = 4;
 const GUARDRAIL_MARKER = "<<GUARDRAIL>>";
+const FALLBACK_TEXT = "I wasn't able to build a routine that met my own safety/quality bar after a few tries — let's simplify: tell me one thing to relax (shorter session, fewer exercises, different equipment) and I'll try again.";
 
 interface HistoryMessage {
   role: "COACH" | "USER";
@@ -121,6 +122,18 @@ export function createChatStream({
               tool_call_id: call.id,
               content: JSON.stringify(result),
             });
+
+            if ((call.name === "generate_workout_routine" || call.name === "modify_workout_routine") && (result as {
+              success: boolean;
+              routineId: string;
+              title: string;
+              subtitle: string;
+              status: string;
+            }).status === "REJECTED") {
+              enqueueSseThought(FALLBACK_TEXT);
+              finalText = FALLBACK_TEXT;
+              break;
+            }
           }
         }
 

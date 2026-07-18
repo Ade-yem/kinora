@@ -1,9 +1,21 @@
 "use client";
 
 import { useEffect } from "react";
+import { useAppStore } from "@/lib/store";
 
 export function PWARegistration() {
+  const flushPendingWorkoutLogs = useAppStore((s) => s.flushPendingWorkoutLogs);
+
   useEffect(() => {
+    // Flush on mount (client-side)
+    flushPendingWorkoutLogs();
+
+    const handleOnline = () => {
+      flushPendingWorkoutLogs();
+    };
+
+    window.addEventListener("online", handleOnline);
+
     if (
       typeof window !== "undefined" &&
       "serviceWorker" in navigator
@@ -19,7 +31,11 @@ export function PWARegistration() {
           });
       });
     }
-  }, []);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+    };
+  }, [flushPendingWorkoutLogs]);
 
   return null;
 }

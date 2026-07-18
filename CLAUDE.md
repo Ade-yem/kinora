@@ -2,14 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project state
-
-**Frontend**: Fully built and wired to the real backend. All screens exist (`app/{page,onboarding,chat,workout/active,home,login,progress,profile,routine/[id],feedback}`), with a Zustand store split into per-slice files (`lib/store/*Slice.ts`, combined in `lib/store/index.ts`) instead of one monolithic store — each slice owns its own server-fetched state (profile, routines, stats, chat, workout) plus the async actions that fetch/mutate it. The old scripted mock chat brain (`lib/conversation-script.ts`) and mock routine data are gone; chat is now a real SSE-streamed conversation against `app/api/chat`.
-
-**Backend**: Foundation slice plus a chat-intake pass complete (as of this session). Full Prisma schema with Auth.js v4 Credentials + OAuth providers (Google, GitHub), database client, LLM plumbing (DeepSeek OpenAI-compatible), validation schemas, CRUD API routes for profiles, exercises, routines, and workouts, a stats-aggregation endpoint, and a real `app/api/chat` GET/POST endpoint (SSE streaming, function-calling tools for profile intake). `Goal`/`Equipment` are free-text now, not fixed enums (per `Ideas/review.md`). Exercise table is still schema-only (empty until future seeding pass). The Actor-Critic Generator/Reviewer routine-generation loop is still deferred — the chat agent gathers and persists intake data but cannot create a `WorkoutRoutine` yet. See `Ideas/remaining-backend.md` and `Ideas/remaining-frontend.md` for full scope.
-
 ### Standing conventions (apply to all future work in this repo)
-
 - **600-line file cap** — no component/page/module file should exceed ~600 lines. Decompose before it does (see `lib/store/`'s per-slice split for the pattern).
 - **Zustand-centralized server state** — any data fetched from an API endpoint lives in a Zustand store slice with an async fetch/mutate action; pages call the store action (typically in `useEffect`) and render from store state, not page-local `useState` holding fetched data.
 
@@ -53,7 +46,8 @@ There is no test runner configured yet.
 - **Auth** (`lib/auth.ts`, `app/api/auth/*`): NextAuth v4, Credentials provider (register + login via email/password) fully working; Google/GitHub/Apple providers declared but unconfigured (requires real client IDs).
 - **Database client** (`lib/db.ts`): Prisma singleton with `PrismaPg` adapter, hot-reload-safe for Next.js dev.
 - **LLM plumbing** (`lib/llm.ts`): OpenAI SDK configured for DeepSeek's endpoint, used by `lib/chat/stream.ts` for the chat endpoint.
-- **Chat** (`lib/chat/{session,stream,tools,prompt}.ts`, `app/api/chat/route.ts`): one `ChatSession` per user, reused indefinitely (`resolveChatSession`). `POST /api/chat` streams an SSE response (`delta`/`done`/`error` events) built from `llmClient.chat.completions.create({stream:true, tools:...})`, executing `get_user_profile`/`update_user_profile` tool calls server-side (Prisma direct, not an HTTP round-trip) before continuing the model's turn. `<<GUARDRAIL>>`-prefixed replies map to `ChatMessageKind.GUARDRAIL`. No routine-generation tooling exists yet — see `Ideas/remaining-backend.md`.
+- **Chat** (`lib/chat/{session,stream,tools,prompt}.ts`, `app/api/chat/route.ts`): one `ChatSession` per user, reused indefinitely (`resolveChatSession`). `POST /api/chat` streams an SSE response (`delta`/`done`/`error` events) built from `llmClient.chat.completions.create({stream:true, tools:...})`, executing `get_user_profile`/`update_user_profile` tool calls server-side (Prisma direct, not an HTTP round-trip) before continuing the model's turn. `<<GUARDRAIL>>`-prefixed replies map to `ChatMessageKind.GUARDRAIL`.
+
 - **API infrastructure**:
   - Error handling (`lib/http/errors.ts`, `lib/http/response.ts`): consistent `{ error: { code, message, details? } }` envelope across all endpoints.
   - Pagination (`lib/api/pagination.ts`): `{ data: T[], pagination: { page, pageSize, totalItems, totalPages } }` for all list endpoints.
