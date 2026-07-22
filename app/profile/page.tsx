@@ -42,7 +42,9 @@ export default function ProfilePage() {
         )}
         <div>
           <div className="font-display text-base font-bold">{displayName}</div>
-          <div className="text-xs text-ink/50">Goal: {profile?.goal || "Not set"}</div>
+          <div className="text-xs text-ink/50">
+            Experience: {profile?.experienceLevel ? profile.experienceLevel.charAt(0).toUpperCase() + profile.experienceLevel.slice(1) : "Not set"}
+          </div>
         </div>
       </div>
 
@@ -76,10 +78,10 @@ export default function ProfilePage() {
       {/* Navigation Rows / Form Fields */}
       <div className="flex flex-col mb-6">
         <Link
-          href="/profile/equipment"
+          href="/profile/biodata"
           className="flex items-center justify-between border-b border-ink/8 py-4 text-sm font-semibold hover:bg-ink/5 rounded-lg px-2 -mx-2 transition"
         >
-          <span>Equipment & Location</span>
+          <span>Biodata & Preferences</span>
           <ChevronRight className="h-4 w-4 text-ink/30" />
         </Link>
 

@@ -3,6 +3,7 @@ import { Space_Grotesk, Inter } from "next/font/google";
 import { SessionProvider } from "@/components/providers/SessionProvider";
 import { SplashScreen } from "@/components/SplashScreen";
 import { PWARegistration } from "@/components/providers/PWARegistration";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -45,6 +46,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-surface text-ink font-sans">
         <SessionProvider>
+          <Toaster position="top-right" />
           <PWARegistration />
           <SplashScreen />
           {children}

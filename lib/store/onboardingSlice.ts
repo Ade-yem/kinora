@@ -1,13 +1,17 @@
 import type { StateCreator } from "zustand";
 import type { AppState } from "./types";
-import type { Goal, OnboardingProfile } from "@/types";
+import type { Location, OnboardingProfile } from "@/types";
 
 export interface OnboardingSlice {
   onboarding: OnboardingProfile;
-  setGoal: (goal: Goal) => void;
+  setExperienceLevel: (experienceLevel: string) => void;
+  setPreferredLocation: (preferredLocation: Location) => void;
 }
 
 export const createOnboardingSlice: StateCreator<AppState, [], [], OnboardingSlice> = (set) => ({
-  onboarding: { goal: null },
-  setGoal: (goal) => set((s) => ({ onboarding: { ...s.onboarding, goal } })),
+  onboarding: { experienceLevel: null, preferredLocation: null },
+  setExperienceLevel: (experienceLevel) =>
+    set((s) => ({ onboarding: { ...s.onboarding, experienceLevel } })),
+  setPreferredLocation: (preferredLocation) =>
+    set((s) => ({ onboarding: { ...s.onboarding, preferredLocation } })),
 });

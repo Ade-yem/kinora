@@ -9,11 +9,12 @@ import { respondError, respondOk } from "@/lib/http/response";
 import { ApiError } from "@/lib/http/errors";
 import { SendChatMessageSchema } from "@/lib/validation/chat";
 import { chatRoleToApi, chatMessageKindToApi } from "@/lib/api/mappers";
-import { resolveChatSession, ensureOpeningMessage } from "@/lib/chat/session";
+import { resolveChatSession } from "@/lib/chat/session";
 import { createChatStream } from "@/lib/chat/stream";
 import { matchesEmergencyPattern, EMERGENCY_RESPONSE_TEXT } from "@/lib/chat/safetyFilter";
 
-
+const OPENING_GREETING =
+  "Yo! How are you doing today?";
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -23,20 +24,39 @@ export async function GET(request: NextRequest) {
     }
 
     const sessionId = request.nextUrl.searchParams.get("sessionId");
-    let chatSession;
-    if (sessionId) {
-      chatSession = await prisma.chatSession.findFirst({
+    if (!sessionId) {
+      return respondOk({
+        chatSessionId: null,
+        messages: [
+          {
+            id: "1",
+            role: "COACH",
+            kind: "TEXT",
+            text: OPENING_GREETING,
+            chip: null,
+            createdAt: new Date(),
+          },
+        ],
+      });
+    }
+
+    const chatSession = await prisma.chatSession.findFirst({
         where: { id: sessionId, userId: session.user.id },
       });
-      if (!chatSession) {
-        return respondError(ApiError.notFound("Session not found"));
-      }
-    } else {
-      const { session: resolvedSession, isNew } = await resolveChatSession(session.user.id);
-      chatSession = resolvedSession;
-      if (isNew) {
-        await ensureOpeningMessage(chatSession.id);
-      }
+    if (!chatSession) {
+      return respondOk({
+        chatSessionId: null,
+        messages: [
+          {
+            id: "1",
+            role: "COACH",
+            kind: "TEXT",
+            text: OPENING_GREETING,
+            chip: null,
+            createdAt: new Date(),
+          },
+        ],
+      });
     }
 
     const messages = await prisma.chatMessage.findMany({
@@ -46,14 +66,23 @@ export async function GET(request: NextRequest) {
 
     return respondOk({
       chatSessionId: chatSession.id,
-      messages: messages.map((m: (typeof messages)[number]) => ({
+      messages: messages.length > 0 ? messages.map((m: (typeof messages)[number]) => ({
         id: m.id,
         role: chatRoleToApi(m.role),
         kind: chatMessageKindToApi(m.kind),
         text: m.text,
         chip: m.chip,
         createdAt: m.createdAt,
-      })),
+      })) : [
+  {
+    id: "1",
+    role: chatRoleToApi("COACH"),
+    kind: chatMessageKindToApi("TEXT"),
+    text: OPENING_GREETING,
+    chip: null,
+    createdAt: new Date(),
+  }
+],
     });
   } catch (error) {
     return respondError(error);
@@ -85,8 +114,12 @@ export async function POST(request: NextRequest) {
         return respondError(ApiError.notFound("Session not found"));
       }
     } else {
-      const resolved = await resolveChatSession(session.user.id);
+      const resolved = await resolveChatSession(session.user.id, true);
       chatSession = resolved.session;
+    }
+    if (!chatSession) {
+      // There is an issue going on somewhere then
+      return respondError(ApiError.internalError("Unable to create chat session"));
     }
 
     if (matchesEmergencyPattern(message)) {
@@ -120,6 +153,7 @@ export async function POST(request: NextRequest) {
                 messageId: savedReply.id,
                 kind: "guardrail",
                 createdAt: savedReply.createdAt,
+                chatSessionId: chatSession.id,
               })
             )
           );

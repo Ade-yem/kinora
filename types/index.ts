@@ -5,7 +5,8 @@ export type Location = "home" | "gym";
 export type EquipmentOption = string;
 
 export interface OnboardingProfile {
-  goal: Goal | null;
+  experienceLevel: string | null;
+  preferredLocation: Location | null;
 }
 
 export type ExerciseTarget = { reps: number; side?: "per-side" } | { seconds: number };
@@ -90,12 +91,12 @@ export type WorkoutPhase = "exercising" | "resting" | "complete";
 export interface UserProfileData {
   id: string;
   userId: string;
-  goal: string | null;
-  location: Location | null;
-  equipment: string[];
-  sessionDurationMinutes: number | null;
-  injuries: unknown;
-  injuriesNotes: string | null;
+  weight: number | null;
+  height: number | null;
+  dateOfBirth: string | null;
+  biologicalSex: string | null;
+  experienceLevel: string | null;
+  preferredLocation: Location | null;
   unitsPreference: string;
   logoStyle: "pulse-bubble" | "rep-loop" | "signal-bars";
 }
@@ -109,6 +110,9 @@ export interface RoutineSummary {
   totalDays: number | null;
   updatedAt: string;
   programId?: string | null;
+  chatSessionId?: string | null;
+  exerciseCount: number;
+  estimatedDurationMinutes: number;
   logs?: {
     id: string;
     performedAt: string;

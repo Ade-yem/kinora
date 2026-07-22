@@ -1,0 +1,30 @@
+[
+  {
+    "id": "cmrqmp7pu000204jfoohz58of",
+    "userId": "cmrqmp6rj000004jfv8igdk71",
+    "weight": null,
+    "height": null,
+    "dateOfBirth": null,
+    "biologicalSex": null,
+    "experienceLevel": null,
+    "preferredLocation": null,
+    "unitsPreference": "lb",
+    "logoStyle": "pulse-bubble",
+    "createdAt": "2026-07-18T17:16:21.714Z",
+    "updatedAt": "2026-07-18T17:49:29.145Z"
+  },
+  {
+    "id": "cmrqm7zbk000204iej73lhgad",
+    "userId": "cmrqm7wz2000004ietm7h69h0",
+    "weight": null,
+    "height": null,
+    "dateOfBirth": null,
+    "biologicalSex": null,
+    "experienceLevel": null,
+    "preferredLocation": null,
+    "unitsPreference": "lb",
+    "logoStyle": "pulse-bubble",
+    "createdAt": "2026-07-18T17:02:57.680Z",
+    "updatedAt": "2026-07-20T16:22:21.922Z"
+  }
+]

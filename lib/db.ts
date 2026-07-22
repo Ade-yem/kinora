@@ -5,10 +5,10 @@ import {PrismaNeon} from "@prisma/adapter-neon";
 import { Pool } from "pg";
 
 declare global {
-  var prisma: any;
+  var prisma: PrismaClient;
 }
 
-let prisma: any;
+let prisma: PrismaClient;
 
 if (process.env.NODE_ENV === "production") {
   prisma = new PrismaClient({

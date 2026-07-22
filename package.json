@@ -9,7 +9,7 @@
     "test": "vitest run",
     "lint": "eslint",
     "generate": "prisma generate",
-    "migrate": "prisma migrate dev --name init",
+    "migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset && pnpm migrate",
     "db:seed": "tsx scripts/seed-exercises.ts",
     "prisma-studio": "prisma studio",
@@ -35,6 +35,7 @@
     "pg": "^8.22.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "sonner": "^2.0.7",
     "zod": "^3.23.8",
     "zustand": "^5.0.14"
   },

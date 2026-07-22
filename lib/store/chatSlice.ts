@@ -223,8 +223,15 @@ export const createChatSlice: StateCreator<AppState, [], [], ChatSlice> = (set, 
           if (event === "delta") appendToPlaceholder((data as { text: string }).text);
           if (event === "thought") appendThoughtToPlaceholder((data as { text: string }).text);
           if (event === "done") {
-            const d = data as { messageId: string; kind: "text" | "guardrail" | "patch" };
+            const d = data as { messageId: string; kind: "text" | "guardrail" | "patch", createdAt: string, chatSessionId: string };
             finalizePlaceholder(d.messageId, d.kind);
+            set((s) => ({
+              chat: {
+                ...s.chat,
+                chatSessionId: d.chatSessionId,
+                
+              }
+            }))
             const currentSessionId = get().chat.chatSessionId;
             if (currentSessionId) {
               await get().fetchSessionRoutine(currentSessionId);

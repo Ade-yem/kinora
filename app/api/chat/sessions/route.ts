@@ -3,7 +3,6 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { respondError, respondOk } from "@/lib/http/response";
 import { ApiError } from "@/lib/http/errors";
-import { ensureOpeningMessage } from "@/lib/chat/session";
 
 export async function GET() {
   try {
@@ -44,7 +43,8 @@ export async function POST() {
       },
     });
 
-    await ensureOpeningMessage(created.id);
+    // chat opening messages are handled on client side so as to prevent
+    // orphan chat sessions from being created
 
     return respondOk(created);
   } catch (error) {

@@ -28,28 +28,37 @@ async function main() {
   const profile = await prisma.userProfile.upsert({
     where: { userId },
     update: {
-      goal: "Build lean muscle and improve chest strength",
-      location: "GYM",
-      equipment: ["Dumbbell", "Barbell", "Bench", "Pull-up Bar", "Bodyweight"],
-      sessionDurationMinutes: 45,
-      injuriesNotes: "Mild left shoulder soreness, avoid extremely heavy overhead press.",
+      experienceLevel: "intermediate",
+      preferredLocation: "GYM",
     },
     create: {
       userId,
-      goal: "Build lean muscle and improve chest strength",
-      location: "GYM",
-      equipment: ["Dumbbell", "Barbell", "Bench", "Pull-up Bar", "Bodyweight"],
-      sessionDurationMinutes: 45,
-      injuriesNotes: "Mild left shoulder soreness, avoid extremely heavy overhead press.",
+      experienceLevel: "intermediate",
+      preferredLocation: "GYM",
     },
   });
 
-  // 3. Create a mock chat session
+  // Ensure test injuries exist
+  await prisma.injury.deleteMany({ where: { userId } });
+  await prisma.injury.create({
+    data: {
+      userId,
+      bodyPart: "Shoulder",
+      severity: "MILD",
+      note: "Mild left shoulder soreness, avoid extremely heavy overhead press.",
+      status: "ACTIVE",
+    },
+  });
+
+  // 3. Create a mock chat session with intake settings
   console.log("Creating mock chat session...");
   const chatSession = await prisma.chatSession.create({
     data: {
       userId,
       title: "Test Routine Generation Session",
+      location: "GYM",
+      equipment: ["Dumbbell", "Barbell", "Bench", "Pull-up Bar", "Bodyweight"],
+      sessionDurationMinutes: 45,
     },
   });
 

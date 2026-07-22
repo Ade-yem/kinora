@@ -60,6 +60,7 @@ model User {
   liabilityWaiverAcceptedAt DateTime? @map("liability_waiver_accepted_at")
 
   profile        UserProfile?
+  injuries       Injury[]
   accounts       Account[]
   sessions       Session[]
   chatSessions   ChatSession[]
@@ -73,16 +74,16 @@ model User {
 }
 
 model UserProfile {
-  id                     String             @id @default(cuid())
-  userId                 String             @unique @map("user_id")
-  goal                   String?
-  location               Location?
-  equipment              String[]
-  sessionDurationMinutes Int?               @map("session_duration_minutes")
-  injuries               Json?
-  injuriesNotes          String?            @map("injuries_notes")
-  unitsPreference        String             @default("lb") @map("units_preference")
-  logoStyle              String             @default("pulse-bubble") @map("logo_style")
+  id                String    @id @default(cuid())
+  userId            String    @unique @map("user_id")
+  weight            Float?
+  height            Float?
+  dateOfBirth       DateTime? @map("date_of_birth")
+  biologicalSex     String?   @map("biological_sex")
+  experienceLevel   String?   @map("experience_level")
+  preferredLocation Location? @map("preferred_location")
+  unitsPreference   String    @default("lb") @map("units_preference")
+  logoStyle         String    @default("pulse-bubble") @map("logo_style")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -143,11 +144,14 @@ model Exercise {
 }
 
 model ChatSession {
-  id        String   @id @default(cuid())
-  userId    String   @map("user_id")
-  title     String?
-  messages  ChatMessage[]
-  routines  WorkoutRoutine[]
+  id                     String           @id @default(cuid())
+  userId                 String           @map("user_id")
+  title                  String?
+  location               Location?
+  equipment              String[]
+  sessionDurationMinutes Int?             @map("session_duration_minutes")
+  messages               ChatMessage[]
+  routines               WorkoutRoutine[]
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -298,4 +302,33 @@ enum PrimaryExerciseClassification {
   ANIMAL_FLOW
   POWERLIFTING
   UNSORTED
+}
+
+model Injury {
+  id         String         @id @default(cuid())
+  userId     String         @map("user_id")
+  bodyPart   String         @map("body_part")
+  severity   InjurySeverity
+  note       String?
+  onsetDate  DateTime?      @map("onset_date")
+  status     InjuryStatus   @default(ACTIVE)
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@map("user_injuries")
+}
+
+enum InjurySeverity {
+  MILD
+  MODERATE
+  SEVERE
+}
+
+enum InjuryStatus {
+  ACTIVE
+  RECOVERING
+  RESOLVED
 }

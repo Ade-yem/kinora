@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ProgressBar } from "@/components/ui/ProgressDots";
 import { SignupStep } from "@/components/onboarding/SignupStep";
-import { GoalStep } from "@/components/onboarding/GoalStep";
+import { BiodataStep } from "@/components/onboarding/BiodataStep";
 import { useAppStore } from "@/lib/store";
 
 const TOTAL_STEPS = 2;
@@ -15,8 +15,9 @@ export default function OnboardingPage() {
   const { status } = useSession();
   const [step, setStep] = useState(0);
 
-  const { goal } = useAppStore((s) => s.onboarding);
-  const setGoal = useAppStore((s) => s.setGoal);
+  const { experienceLevel, preferredLocation } = useAppStore((s) => s.onboarding);
+  const setExperienceLevel = useAppStore((s) => s.setExperienceLevel);
+  const setPreferredLocation = useAppStore((s) => s.setPreferredLocation);
   const updateProfile = useAppStore((s) => s.updateProfile);
   const fetchProfile = useAppStore((s) => s.fetchProfile);
   const profile = useAppStore((s) => s.profile);
@@ -30,7 +31,7 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (status === "authenticated" && profileStatus === "loaded") {
-      if (profile?.goal) {
+      if (profile?.experienceLevel && profile?.preferredLocation) {
         router.push("/home");
       } else {
         setStep(1);
@@ -57,11 +58,15 @@ export default function OnboardingPage() {
 
       {step === 0 && <SignupStep />}
       {step === 1 && (
-        <GoalStep
-          goal={goal}
-          onSelect={setGoal}
+        <BiodataStep
+          experienceLevel={experienceLevel}
+          preferredLocation={preferredLocation}
+          onSelectExperience={setExperienceLevel}
+          onSelectLocation={setPreferredLocation}
           onContinue={async () => {
-            if (goal) await updateProfile({ goal });
+            if (experienceLevel && preferredLocation) {
+              await updateProfile({ experienceLevel, preferredLocation });
+            }
             router.push("/home");
           }}
         />

@@ -164,6 +164,7 @@ export function createChatStream({
               messageId: saved.id,
               kind: kind.toLowerCase(),
               createdAt: saved.createdAt,
+              chatSessionId
             })
           )
         );

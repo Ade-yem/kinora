@@ -27,17 +27,9 @@ async function getProfile() {
   }
 
   return respondOk({
-    id: profile.id,
-    userId: profile.userId,
-    goal: profile.goal,
-    location: locationToApi(profile.location),
-    equipment: profile.equipment,
-    sessionDurationMinutes: profile.sessionDurationMinutes,
-    injuries: profile.injuries,
-    injuriesNotes: profile.injuriesNotes,
-    unitsPreference: profile.unitsPreference,
-    logoStyle: profile.logoStyle,
-    updatedAt: profile.updatedAt,
+    ...profile,
+    dateOfBirth: profile.dateOfBirth ? profile.dateOfBirth.toISOString().slice(0, 10) : null,
+    preferredLocation: profile.preferredLocation ? locationToApi(profile.preferredLocation) : null,
   });
 }
 
@@ -56,38 +48,38 @@ async function updateProfile(request: NextRequest) {
   }
 
   const {
-    goal,
-    location,
-    equipment,
-    sessionDurationMinutes,
-    injuriesNotes,
+    weight,
+    height,
+    dateOfBirth,
+    biologicalSex,
+    experienceLevel,
+    preferredLocation,
     unitsPreference,
     logoStyle,
-    injuries,
   } = parsed.data;
 
   const profile = await prisma.userProfile.upsert({
     where: { userId: session.user.id },
     create: {
       userId: session.user.id,
-      goal,
-      location: location ? locationFromApi(location) : undefined,
-      equipment,
-      sessionDurationMinutes,
-      injuriesNotes,
+      weight,
+      height,
+      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+      biologicalSex,
+      experienceLevel,
+      preferredLocation: preferredLocation ? locationFromApi(preferredLocation) as any : null,
       unitsPreference,
       logoStyle,
-      injuries,
     },
     update: {
-      goal,
-      location: location ? locationFromApi(location) : undefined,
-      equipment,
-      sessionDurationMinutes,
-      injuriesNotes,
-      unitsPreference,
-      logoStyle,
-      injuries,
+      weight: weight !== undefined ? weight : undefined,
+      height: height !== undefined ? height : undefined,
+      dateOfBirth: dateOfBirth !== undefined ? (dateOfBirth ? new Date(dateOfBirth) : null) : undefined,
+      biologicalSex: biologicalSex !== undefined ? biologicalSex : undefined,
+      experienceLevel: experienceLevel !== undefined ? experienceLevel : undefined,
+      preferredLocation: preferredLocation !== undefined ? (preferredLocation ? locationFromApi(preferredLocation) as any : null) : undefined,
+      unitsPreference: unitsPreference !== undefined ? unitsPreference : undefined,
+      logoStyle: logoStyle !== undefined ? logoStyle : undefined,
     },
   });
 
@@ -95,12 +87,12 @@ async function updateProfile(request: NextRequest) {
     {
       id: profile.id,
       userId: profile.userId,
-      goal: profile.goal,
-      location: locationToApi(profile.location),
-      equipment: profile.equipment,
-      sessionDurationMinutes: profile.sessionDurationMinutes,
-      injuries: profile.injuries,
-      injuriesNotes: profile.injuriesNotes,
+      weight: profile.weight,
+      height: profile.height,
+      dateOfBirth: profile.dateOfBirth ? profile.dateOfBirth.toISOString().slice(0, 10) : null,
+      biologicalSex: profile.biologicalSex,
+      experienceLevel: profile.experienceLevel,
+      preferredLocation: profile.preferredLocation ? locationToApi(profile.preferredLocation) : null,
       unitsPreference: profile.unitsPreference,
       logoStyle: profile.logoStyle,
       updatedAt: profile.updatedAt,

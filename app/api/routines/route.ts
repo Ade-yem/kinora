@@ -23,6 +23,9 @@ interface RoutineSummary {
   totalDays: number | null;
   updatedAt: Date;
   programId: string | null;
+  chatSessionId: string | null;
+  exerciseCount: number;
+  estimatedDurationMinutes: number;
   logs: {
     id: string;
     performedAt: Date;
@@ -41,6 +44,7 @@ const ROUTINE_SUMMARY_SELECT = {
   totalDays: true,
   updatedAt: true,
   programId: true,
+  chatSessionId: true,
   items: { select: { id: true } },
   logs: {
     select: {
@@ -62,6 +66,7 @@ function toRoutineSummary(r: {
   totalDays: number | null;
   updatedAt: Date;
   programId: string | null;
+  chatSessionId: string | null;
   items: { id: string }[];
   logs: {
     id: string;
@@ -79,6 +84,9 @@ function toRoutineSummary(r: {
     totalDays: r.totalDays,
     updatedAt: r.updatedAt,
     programId: r.programId,
+    chatSessionId: r.chatSessionId,
+    exerciseCount: r.items.length,
+    estimatedDurationMinutes: r.items.length * 6,
     logs: r.logs,
   };
 }

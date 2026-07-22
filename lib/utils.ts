@@ -29,9 +29,9 @@ export function getYoutubeEmbedUrl(url: string | null) {
   if (!url) return null;
   // Handle short URLs: https://youtu.be/abc
   let match = url.match(/youtu\.be\/([^?#]+)/);
-  if (match) return `https://www.youtube.com/embed/${match[1]}?autoplay=1&mute=1&loop=1&playlist=${match[1]}`;
+  if (match) return `https://www.youtube.com/embed/${match[1]}?autoplay=1&mute=0&loop=1&playlist=${match[1]}`;
   // Handle watch/embed URLs
   match = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/ ]{11})/);
-  if (match) return `https://www.youtube.com/embed/${match[1]}?autoplay=1&mute=1&loop=1&playlist=${match[1]}`;
+  if (match) return `https://www.youtube.com/embed/${match[1]}?autoplay=1&mute=0&loop=1&playlist=${match[1]}`;
   return url;
 }

@@ -1,21 +1,18 @@
 import type { StateCreator } from "zustand";
 import type { AppState } from "./types";
 import type { Location, UserProfileData } from "@/types";
-import { apiGet, apiPatch } from "@/lib/api-client";
+import { apiFetch, apiGet, apiPatch } from "@/lib/api-client";
+import { UserProfile } from "@/app/generated/prisma/client";
 
 export interface ProfileUpdateInput {
-  goal?: string;
-  location?: Location;
-  equipment?: string[];
-  sessionDurationMinutes?: number;
-  injuriesNotes?: string;
+  weight?: number | null;
+  height?: number | null;
+  dateOfBirth?: string | null;
+  biologicalSex?: string | null;
+  experienceLevel?: string | null;
+  preferredLocation?: Location | null;
   unitsPreference?: string;
   logoStyle?: "pulse-bubble" | "rep-loop" | "signal-bars";
-  injuries?: {
-    bodyPart: string;
-    severity?: "mild" | "moderate" | "severe";
-    note?: string;
-  }[];
 }
 
 export interface ProfileSlice {
@@ -38,7 +35,6 @@ export const createProfileSlice: StateCreator<AppState, [], [], ProfileSlice> = 
       set({ profileStatus: "error" });
     }
   },
-
   updateProfile: async (partial) => {
     const profile = await apiPatch<UserProfileData>("/api/profile", partial);
     set({ profile, profileStatus: "loaded" });

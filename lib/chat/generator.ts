@@ -53,106 +53,229 @@ export interface ProgramCandidate {
   routines: RoutineCandidate[];
 }
 
-interface SearchExercisesArgs {
+interface FilterSet {
+  slotLabel?: string;
   muscles?: string[];
   equipment?: string[];
   classification?: string;
   bodyRegion?: string;
-  search?: string;
+  posture?: string;
+  movementPattern?: string;
+  laterality?: string;
+  difficultyLevel?: string;
   limit?: number;
 }
 
+interface BatchedSearchExercisesArgs {
+  slots: FilterSet[];
+}
+
+export const getExercisesToolDefinition = {
+  type: "function" as const,
+  function: {
+    name: "get_exercises_by_parameters",
+    description: "Batch query the exercise database for multiple routine slots in a single turn. Each slot represents one exercise target.",
+    parameters: {
+      type: "object",
+      properties: {
+        slots: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              slotLabel: {
+                type: "string",
+                description: "A label describing the role of this exercise slot (e.g. 'Primary Squat', 'Upper Chest Push', 'Core Flexion')."
+              },
+              muscles: {
+                type: "array",
+                items: { type: "string" },
+                description: "Muscle names (e.g. QUADRICEPS, SHOULDERS, GLUTES, CHEST)."
+              },
+              equipment: {
+                type: "array",
+                items: { type: "string" },
+                description: "Equipment required (e.g. Dumbbell, Barbell, Bodyweight)."
+              },
+              classification: {
+                type: "string",
+                description: "Primary exercise classification (e.g. BODYBUILDING, CALISTHENICS)."
+              },
+              bodyRegion: {
+                type: "string",
+                description: "Body region (e.g. LOWER_BODY, UPPER_BODY, CORE)."
+              },
+              posture: {
+                type: "string",
+                description: "Posture filter (e.g. Standing, Supine, Seated)."
+              },
+              movementPattern: {
+                type: "string",
+                description: "Movement pattern query matching movementPattern1/2/3."
+              },
+              laterality: {
+                type: "string",
+                description: "Laterality filter (e.g. Unilateral, Bilateral)."
+              },
+              difficultyLevel: {
+                type: "string",
+                description: "Optional difficulty level. WARNING: Do not pass this parameter unless the user explicitly requests a specific difficulty, as it excessively narrows results."
+              },
+              limit: {
+                type: "number",
+                description: "Max results per slot (default 10)."
+              }
+            },
+            additionalProperties: false
+          },
+          description: "List of routine slots to fill, up to a maximum of 8 slots."
+        }
+      },
+      required: ["slots"],
+      additionalProperties: false
+    }
+  }
+};
+
 // Search tool helper for Generator
 export async function getExercisesByParametersInternal(argsJson: string) {
-  let args: SearchExercisesArgs;
+  let args: BatchedSearchExercisesArgs;
   try {
-    args = JSON.parse(argsJson) as SearchExercisesArgs;
+    args = JSON.parse(argsJson) as BatchedSearchExercisesArgs;
   } catch {
     return { error: "invalid arguments" };
   }
 
-  const { muscles, equipment, classification, bodyRegion, search, limit = 20 } = args;
-  const andConditions: Prisma.ExerciseWhereInput[] = [];
-
-  if (search) {
-    andConditions.push({ name: { contains: search, mode: "insensitive" } });
+  const { slots } = args;
+  if (!slots || !Array.isArray(slots)) {
+    return { error: "slots is required and must be an array" };
   }
 
-  if (muscles && muscles.length > 0) {
-    const muscleConditions = muscles.map((m: string) => {
-      const enumVal = normalizeMuscleGroup(m);
-      const orConditions: Prisma.ExerciseWhereInput[] = [
-        { primeMoverMuscle: { contains: m, mode: "insensitive" } },
-        { secondaryMuscle: { contains: m, mode: "insensitive" } },
-      ];
-      if (enumVal) {
-        orConditions.push({ targetMuscleGroup: enumVal });
+  // Enforce a hard ceiling of 8 slots per call
+  const boundedSlots = slots.slice(0, 8);
+  const slotResults = [];
+
+  for (const slot of boundedSlots) {
+    const {
+      slotLabel = "unspecified",
+      muscles,
+      equipment,
+      classification,
+      bodyRegion,
+      posture,
+      movementPattern,
+      laterality,
+      difficultyLevel,
+      limit = 10,
+    } = slot;
+
+    const andConditions: Prisma.ExerciseWhereInput[] = [];
+
+    if (muscles) {
+      const muscleArray = Array.isArray(muscles) ? muscles : [muscles];
+      if (muscleArray.length > 0) {
+        const muscleConditions = muscleArray.map((m: string) => {
+          const enumVal = normalizeMuscleGroup(m);
+          const orConditions: Prisma.ExerciseWhereInput[] = [
+            { primeMoverMuscle: { contains: m, mode: "insensitive" } },
+            { secondaryMuscle: { contains: m, mode: "insensitive" } },
+          ];
+          if (enumVal) {
+            orConditions.push({ targetMuscleGroup: enumVal });
+          }
+          return { OR: orConditions };
+        });
+        andConditions.push({ OR: muscleConditions });
       }
-      return { OR: orConditions };
-    });
-    andConditions.push({ OR: muscleConditions });
-  }
+    }
 
-  if (equipment && equipment.length > 0) {
-    andConditions.push({
-      OR: equipment.map((eq: string) => ({
-        primaryEquipment: { contains: eq, mode: "insensitive" },
-      })),
-    });
-  }
+    if (equipment) {
+      const eqArray = Array.isArray(equipment) ? equipment : [equipment];
+      if (eqArray.length > 0) {
+        andConditions.push({
+          OR: eqArray.map((eq: string) => ({
+            primaryEquipment: { contains: eq, mode: "insensitive" },
+          })),
+        });
+      }
+    }
 
-  if (classification) {
-    const enumVal = classification.toUpperCase().replace(/\s+/g, "_") as PrimaryExerciseClassification;
-    if (Object.values(PrimaryExerciseClassification).includes(enumVal)) {
-      andConditions.push({ primaryClassification: enumVal });
+    if (classification) {
+      const enumVal = classification.toUpperCase().replace(/\s+/g, "_") as PrimaryExerciseClassification;
+      if (Object.values(PrimaryExerciseClassification).includes(enumVal)) {
+        andConditions.push({ primaryClassification: enumVal });
+      }
+    }
+
+    if (bodyRegion) {
+      const enumVal = bodyRegion.toUpperCase().replace(/\s+/g, "_") as BodyRegion;
+      if (Object.values(BodyRegion).includes(enumVal)) {
+        andConditions.push({ bodyRegion: enumVal });
+      }
+    }
+
+    if (posture) {
+      andConditions.push({ posture: { contains: posture, mode: "insensitive" } });
+    }
+
+    if (movementPattern) {
+      andConditions.push({
+        OR: [
+          { movementPattern1: { contains: movementPattern, mode: "insensitive" } },
+          { movementPattern2: { contains: movementPattern, mode: "insensitive" } },
+          { movementPattern3: { contains: movementPattern, mode: "insensitive" } },
+        ],
+      });
+    }
+
+    if (laterality) {
+      andConditions.push({ laterality: { contains: laterality, mode: "insensitive" } });
+    }
+
+    if (difficultyLevel) {
+      andConditions.push({ difficultyLevel: { contains: difficultyLevel, mode: "insensitive" } });
+    }
+
+    const where: Prisma.ExerciseWhereInput = andConditions.length > 0 ? { AND: andConditions } : {};
+
+    try {
+      console.log(`[Search DB] Slot: "${slotLabel}" constructed query where: ${JSON.stringify(where)}`);
+      const exercises = await prisma.exercise.findMany({
+        where,
+        take: Math.min(limit, 20),
+      });
+      console.log(`[Search DB] Slot: "${slotLabel}" found ${exercises.length} exercises.`);
+
+      slotResults.push({
+        slotLabel,
+        exercises: exercises.map(e => ({ id: e.id, name: e.name, primaryEquipment: e.primaryEquipment })),
+      });
+    } catch (error) {
+      console.error(`[Search DB] Slot ${slotLabel} query failed:`, error);
+      slotResults.push({
+        slotLabel,
+        error: error instanceof Error ? error.message : "Query failed",
+      });
     }
   }
 
-  if (bodyRegion) {
-    const enumVal = bodyRegion.toUpperCase().replace(/\s+/g, "_") as BodyRegion;
-    if (Object.values(BodyRegion).includes(enumVal)) {
-      andConditions.push({ bodyRegion: enumVal });
-    }
-  }
-
-  const where: Prisma.ExerciseWhereInput = andConditions.length > 0 ? { AND: andConditions } : {};
-
-  try {
-    console.log(`[Search DB] Query arguments: muscles=${JSON.stringify(muscles)}, equipment=${JSON.stringify(equipment)}, search=${search}`);
-    console.log(`[Search DB] Query WHERE clause: ${JSON.stringify(where)}`);
-    const exercises = await prisma.exercise.findMany({
-      where,
-      select: {
-        id: true,
-        name: true,
-        targetMuscleGroup: true,
-        primeMoverMuscle: true,
-        primaryEquipment: true,
-        difficultyLevel: true,
-      },
-      take: Math.min(limit, 50),
-    });
-    console.log(`[Search DB] Found ${exercises.length} exercises matching criteria.`);
-
-    return { exercises };
-  } catch (error) {
-    console.error(`[Search DB] Query failed:`, error);
-    return { error: error instanceof Error ? error.message : "Failed to fetch exercises" };
-  }
+  return { slotResults };
 }
 
 const GENERATOR_SYSTEM_PROMPT = `You are a professional Personal Trainer and Workout Routine Generator Agent. Your job is to create structured, highly effective workout routines for a user based on their profile.
 
 You MUST follow these rules:
-1. Use the \`get_exercises_by_parameters\` tool to find REAL exercises in the database. Never invent exercise IDs.
+1. Use the \`get_exercises_by_parameters\` tool to find REAL exercises in the database. Never invent exercise IDs. Call it in ONE turn with a list of all the \`slots\` you need for the routine (batching) to resolve routine generation in a single step.
 2. Select exercises that match the user's available equipment and location. If the user works out at "Home" with "Dumbbells", only select bodyweight exercises or exercises requiring dumbbells.
 3. Fit the number of exercises to the user's desired session duration:
    - 15-30 minutes: 3-4 exercises (approx. 9-12 total sets).
    - 45 minutes: 5-6 exercises (approx. 15-18 total sets).
    - 60+ minutes: 6-8 exercises (approx. 18-24 total sets).
-4. Do NOT include exercises that aggravate the user's listed injuries (e.g., no overhead press for shoulder pain, no heavy deadlifts/squats for lower back pain).
-5. If a multi-day routine, split, or program is requested (e.g. 3-day split), generate one routine object per day in the \`routines\` array (with correct \`dayIndex\` and \`totalDays\`). You can designate recovery or rest days by providing an empty \`exercises\` array (\`"exercises": []\`) for that day, using a title like "Day 3: Rest & Recovery" and a brief subtitle. If an existing program is provided in the context, modify that program's daily routines to satisfy the user's requested adjustment. Keep unchanged exercises as they are (preserving their exerciseId and parameters), only replace, insert, or remove exercises as needed to address the feedback. Keep the overall duration, equipment limits, and injury notes in mind.
-6. Output your final response as a JSON object inside a \`\`\`json \`\`\` block matching this format:
+4. Apply the following safety reasoning to avoid aggravating the user's injuries (exclude appropriate patterns/postures based on active or recovering injuries):
+   - Knee Pain/Injury: Avoid Knee Dominant movements (exclude \`movementPattern: "Knee Dominant"\`).
+   - Lower Back Pain/Injury: Avoid Rotational and Hip Hinge patterns (exclude \`movementPattern: "Rotational"\` or \`movementPattern: "Hip Hinge"\`). Prefer Supine (\`posture: "Supine"\`) or Seated (\`posture: "Seated"\`) postures.
+   - Shoulder/Rotator Cuff Stiffness or Pain: Avoid overhead movements (exclude \`movementPattern: "Vertical Push"\` for upper body movements).
+5. Output your final response as a JSON object inside a \`\`\`json \`\`\` block matching this format:
 {
   "programTitle": "Overall program title (e.g. 7-Day Abs, Shoulders & Core)",
   "routines": [
@@ -173,6 +296,13 @@ You MUST follow these rules:
     }
   ]
 }
+6. Do NOT pass the \`difficultyLevel\` parameter in your search slots unless the user explicitly requests a specific difficulty level. Leave it undefined so you retrieve all matching exercises across all difficulty levels, preventing empty search results.
+
+Available search parameters for get_exercises_by_parameters:
+- posture: "Supine", "Bridge", "Quadruped", "Seated Floor", "Hanging", "Prone", "Side Plank", "Kneeling", "Seated", "Standing", "Half Kneeling", "Staggered Stance", "Split Squat", "Single Leg Standing", "Single Leg Supported"
+- difficultyLevel: "Novice", "Beginner", "Intermediate", "Advanced", "Expert"
+- laterality: "Unilateral", "Bilateral", "Contralateral", "Ipsilateral"
+- movementPattern: "Anti-Extension", "Hip Extension", "Anti-Rotational", "Rotational", "Spinal Flexion", "Horizontal Push", "Hip Flexion", "Lateral Flexion", "Anti-Lateral Flexion", "Horizontal Pull", "Locomotion", "Vertical Pull", "Vertical Push", "Hip Hinge", "Knee Dominant"
 `;
 
 const REVIEWER_SYSTEM_PROMPT = `You are a strict, professional Kinesiologist and Workout Reviewer Agent. Your job is to analyze a candidate workout routine and determine if it is:
@@ -199,8 +329,11 @@ interface SafeToolCall {
 }
 
 async function runGenerator(
-  userProfile: UserProfile,
-  goal: string,
+  biodataText: string,
+  locationText: string,
+  equipmentText: string,
+  durationText: string,
+  injuriesText: string,
   feedbackLoopNotes: string | null,
   onProgress: (text: string) => void,
   feedback?: string,
@@ -223,11 +356,13 @@ async function runGenerator(
     {
       role: "user",
       content: `Please generate/modify a workout routine for the following profile:
-- Goal: ${userProfile.goal || "Not specified"}
-- Location: ${userProfile.location || "Not specified"}
-- Available Equipment: ${userProfile.equipment?.join(", ") || "None"}
-- Session Duration: ${userProfile.sessionDurationMinutes || 45} minutes
-- Injuries/Notes: ${userProfile.injuriesNotes || "None"}
+- Biological Data:
+${biodataText}
+- Session Location: ${locationText}
+- Session Available Equipment: ${equipmentText}
+- Session Duration: ${durationText}
+- Active Injuries/Safety Notes:
+${injuriesText}
 ${currentRoutineContext ? `\n${currentRoutineContext}` : ""}
 ${feedback ? `\nUser's Requested Modification: "${feedback}"` : ""}
 ${feedbackLoopNotes ? `\nFeedback from Reviewer/Previous attempt:\n${feedbackLoopNotes}` : ""}`,
@@ -239,35 +374,7 @@ ${feedbackLoopNotes ? `\nFeedback from Reviewer/Previous attempt:\n${feedbackLoo
     const completion = await llmClient.chat.completions.create({
       model: DEEPSEEK_MODEL || "deepseek-v4-flash",
       messages: messages as unknown as Parameters<typeof llmClient.chat.completions.create>[0]["messages"],
-      tools: [
-        {
-          type: "function",
-          function: {
-            name: "get_exercises_by_parameters",
-            description: "Search the exercise database for exercises matching the criteria.",
-            parameters: {
-              type: "object",
-              properties: {
-                muscles: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "Muscle names (e.g. CHEST, QUADS, GLUTES, TRICEPS)",
-                },
-                equipment: {
-                  type: "array",
-                  items: { type: "string" },
-                  description: "Equipment (e.g. Dumbbell, Barbell, Bodyweight)",
-                },
-                classification: { type: "string" },
-                bodyRegion: { type: "string" },
-                search: { type: "string" },
-                limit: { type: "number" },
-              },
-              additionalProperties: false,
-            },
-          },
-        },
-      ],
+      tools: [getExercisesToolDefinition],
       tool_choice: "auto",
     });
 
@@ -290,7 +397,12 @@ ${feedbackLoopNotes ? `\nFeedback from Reviewer/Previous attempt:\n${feedbackLoo
       });
       for (const toolCall of toolCalls) {
         if (toolCall.function.name === "get_exercises_by_parameters") {
-          onProgress(`[Generator] Searching exercises for muscles: ${JSON.parse(toolCall.function.arguments).muscles || "any"}...\n`);
+          let numSlots = 0;
+          try {
+            const parsedArgs = JSON.parse(toolCall.function.arguments);
+            numSlots = parsedArgs.slots?.length || 0;
+          } catch {}
+          onProgress(`[Generator] Searching exercises for ${numSlots} routine slots...\n`);
           const result = await getExercisesByParametersInternal(toolCall.function.arguments);
           messages.push({
             role: "tool",
@@ -309,7 +421,11 @@ ${feedbackLoopNotes ? `\nFeedback from Reviewer/Previous attempt:\n${feedbackLoo
 }
 
 async function runReviewer(
-  userProfile: UserProfile,
+  biodataText: string,
+  locationText: string,
+  equipmentText: string,
+  durationText: string,
+  injuriesText: string,
   candidateRoutine: ProgramCandidate,
   onProgress: (text: string) => void,
   currentRoutineContext?: string
@@ -320,12 +436,14 @@ async function runReviewer(
     { role: "system" as const, content: REVIEWER_SYSTEM_PROMPT },
     {
       role: "user" as const,
-      content: `User Profile:
-- Goal: ${userProfile.goal || "Not specified"}
-- Location: ${userProfile.location || "Not specified"}
-- Available Equipment: ${userProfile.equipment?.join(", ") || "None"}
-- Session Duration: ${userProfile.sessionDurationMinutes || 45} minutes
-- Injuries/Notes: ${userProfile.injuriesNotes || "None"}
+      content: `User Profile & Session Details:
+- Biological Data:
+${biodataText}
+- Session Location: ${locationText}
+- Session Available Equipment: ${equipmentText}
+- Session Duration: ${durationText}
+- Active Injuries/Safety Notes:
+${injuriesText}
 
 ${currentRoutineContext ? `Active Program/Routines before refinement:\n${currentRoutineContext}\n` : ""}
 Candidate Routine:
@@ -506,6 +624,35 @@ export async function runRoutineGenerationLoop({
     throw new Error("User profile not found");
   }
 
+  const activeSession = await prisma.chatSession.findUnique({
+    where: { id: chatSessionId },
+  });
+
+  const activeInjuries = await prisma.injury.findMany({
+    where: { userId, status: { in: ["ACTIVE", "RECOVERING"] } },
+  });
+
+  const biodataText = `
+- Weight: ${profile.weight ? `${profile.weight} ${profile.unitsPreference}` : "Not specified"}
+- Height: ${profile.height ? `${profile.height} ${profile.unitsPreference === "lb" ? "in" : "cm"}` : "Not specified"}
+- Age/Date of Birth: ${profile.dateOfBirth ? profile.dateOfBirth.toISOString().slice(0, 10) : "Not specified"}
+- Biological Sex: ${profile.biologicalSex || "Not specified"}
+- Training Experience Level: ${profile.experienceLevel || "Not specified"}
+- Preferred Location: ${profile.preferredLocation || "Not specified"}
+`.trim();
+
+  const locationText = activeSession?.location ? activeSession.location.toString().toLowerCase() : "Not specified";
+  const equipmentText = activeSession?.equipment && activeSession.equipment.length > 0
+    ? activeSession.equipment.join(", ")
+    : "None";
+  const durationText = activeSession?.sessionDurationMinutes
+    ? `${activeSession.sessionDurationMinutes} minutes`
+    : "45 minutes";
+
+  const injuriesText = activeInjuries.length > 0
+    ? activeInjuries.map((inj) => `- ${inj.bodyPart} (${inj.severity.toLowerCase()}): ${inj.note || "No details"}`).join("\n")
+    : "None";
+
   let routineContext = "";
   if (feedback) {
     const activeRoutines = await prisma.workoutRoutine.findMany({
@@ -546,8 +693,11 @@ export async function runRoutineGenerationLoop({
 
     try {
       const generatorOutput = await runGenerator(
-        profile,
-        profile.goal || "",
+        biodataText,
+        locationText,
+        equipmentText,
+        durationText,
+        injuriesText,
         feedbackNotes,
         onProgress,
         feedback,
@@ -564,7 +714,16 @@ export async function runRoutineGenerationLoop({
 
     // Run Reviewer (Critic)
     try {
-      const reviewResult = await runReviewer(profile, candidateRoutine, onProgress, routineContext);
+      const reviewResult = await runReviewer(
+        biodataText,
+        locationText,
+        equipmentText,
+        durationText,
+        injuriesText,
+        candidateRoutine,
+        onProgress,
+        routineContext
+      );
       if (reviewResult.status === "APPROVED") {
         onProgress(`[Reviewer] APPROVED! Saving routine...\n`);
         
