@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ProgressBar } from "@/components/ui/ProgressDots";
-import { SignupStep } from "@/components/onboarding/SignupStep";
 import { BiodataStep } from "@/components/onboarding/BiodataStep";
 import { useAppStore } from "@/lib/store";
 
@@ -53,24 +52,23 @@ export default function OnboardingPage() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-1 flex-col px-6 py-8">
       <div className="mb-6">
-        <ProgressBar total={TOTAL_STEPS} current={step + 1} />
       </div>
-
-      {step === 0 && <SignupStep />}
-      {step === 1 && (
-        <BiodataStep
-          experienceLevel={experienceLevel}
-          preferredLocation={preferredLocation}
-          onSelectExperience={setExperienceLevel}
-          onSelectLocation={setPreferredLocation}
-          onContinue={async () => {
-            if (experienceLevel && preferredLocation) {
-              await updateProfile({ experienceLevel, preferredLocation });
-            }
-            router.push("/home");
-          }}
-        />
-      )}
+      <BiodataStep
+        experienceLevel={experienceLevel}
+        preferredLocation={preferredLocation}
+        onSelectExperience={setExperienceLevel}
+        onSelectLocation={setPreferredLocation}
+        onContinue={async (biodata) => {
+          if (experienceLevel && preferredLocation) {
+            await updateProfile({
+              experienceLevel,
+              preferredLocation,
+              ...biodata,
+            });
+          }
+          router.push("/home");
+        }}
+      />
     </main>
   );
 }
