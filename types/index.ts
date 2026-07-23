@@ -71,6 +71,7 @@ export interface Routine {
   totalDays?: number | null;
   chatSessionId?: string | null;
   chatSessionTitle?: string | null;
+  programId?: string | null;
 }
 
 export type ChatMessageKind = "text" | "guardrail" | "patch";
@@ -106,11 +107,11 @@ export interface RoutineSummary {
   title: string;
   subtitle: string | null;
   status: RoutineStatus;
-  dayIndex: number | null;
-  totalDays: number | null;
+  dayIndex: number;
+  totalDays: number;
   updatedAt: string;
-  programId?: string | null;
-  chatSessionId?: string | null;
+  programId: string;
+  chatSessionId: string | null;
   exerciseCount: number;
   estimatedDurationMinutes: number;
   logs?: {
@@ -119,6 +120,36 @@ export interface RoutineSummary {
     durationSeconds: number | null;
     totalVolumeKg: number | null;
   }[];
+}
+
+export interface ProgramSummary {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  status: RoutineStatus;
+  totalDays: number;
+  updatedAt: string;
+  chatSessionId: string | null;
+  exerciseCount: number;
+  estimatedDurationMinutes: number;
+  firstRoutineId: string;
+  logs?: {
+    id: string;
+    performedAt: string;
+    durationSeconds: number | null;
+    totalVolumeKg: number | null;
+  }[];
+}
+
+export interface Program {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  status: RoutineStatus;
+  totalDays: number;
+  chatSessionId: string | null;
+  updatedAt: string;
+  routines: RoutineSummary[];
 }
 
 export interface RecentPr {

@@ -64,7 +64,7 @@ model User {
   accounts       Account[]
   sessions       Session[]
   chatSessions   ChatSession[]
-  workoutRoutines WorkoutRoutine[]
+  workoutPrograms WorkoutProgram[]
   workoutLogs    WorkoutLog[]
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -151,7 +151,7 @@ model ChatSession {
   equipment              String[]
   sessionDurationMinutes Int?             @map("session_duration_minutes")
   messages               ChatMessage[]
-  routines               WorkoutRoutine[]
+  programs               WorkoutProgram[]
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -177,28 +177,43 @@ model ChatMessage {
   @@map("chat_messages")
 }
 
-model WorkoutRoutine {
-  id            String      @id @default(cuid())
-  chatSessionId String?      @map("chat_session_id")
-  userId        String      @map("user_id")
+model WorkoutProgram {
+  id            String         @id @default(cuid())
+  userId        String         @map("user_id")
+  chatSessionId String?        @map("chat_session_id")
   title         String
   subtitle      String?
-  status        RoutineStatus @default(PENDING_GENERATION)
-  reviewNotes   Json?       @map("review_notes")
-  finalizedAt   DateTime?   @map("finalized_at")
-  programId     String?     @map("program_id")
-  dayIndex      Int?        @map("day_index")
-  totalDays     Int?        @map("total_days")
+  status        RoutineStatus  @default(PENDING_GENERATION)
+  reviewNotes   Json?          @map("review_notes")
+  finalizedAt   DateTime?      @map("finalized_at")
+  totalDays     Int            @map("total_days")
 
-  chatSession ChatSession? @relation(fields: [chatSessionId], references: [id], onDelete: SetNull)
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items       RoutineItem[]
-  logs        WorkoutLog[]
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatSession   ChatSession?   @relation(fields: [chatSessionId], references: [id], onDelete: SetNull)
+  routines      WorkoutRoutine[]
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
 
   @@index([userId, status])
+  @@map("workout_programs")
+}
+
+model WorkoutRoutine {
+  id            String         @id @default(cuid())
+  programId     String         @map("program_id")
+  dayIndex      Int            @map("day_index")
+  title         String
+  subtitle      String?
+
+  program       WorkoutProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  items         RoutineItem[]
+  logs          WorkoutLog[]
+
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  @@unique([programId, dayIndex])
   @@map("workout_routines")
 }
 

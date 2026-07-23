@@ -1,12 +1,12 @@
 import Link from "next/link";
-import type { RoutineSummary } from "@/types";
+import type { ProgramSummary } from "@/types";
 import { MessageSquare, Sparkles, ArrowRight, Play } from "lucide-react";
 
 export function ContinueSection({
   routines,
   sessions,
 }: {
-  routines: RoutineSummary[];
+  routines: ProgramSummary[];
   sessions: { id: string; title: string | null; updatedAt: string }[];
 }) {
   // Find unfinalized routines (status === 'forming' or 'ready')

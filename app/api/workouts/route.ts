@@ -68,14 +68,18 @@ async function createWorkout(request: NextRequest, userId: string) {
 
   const routine = await prisma.workoutRoutine.findUnique({
     where: { id: routineId },
-    select: { userId: true },
+    select: {
+      program: {
+        select: { userId: true },
+      },
+    },
   });
 
   if (!routine) {
     throw ApiError.notFound("Routine not found");
   }
 
-  if (routine.userId !== userId) {
+  if (routine.program.userId !== userId) {
     throw ApiError.notFound("Routine not found");
   }
 

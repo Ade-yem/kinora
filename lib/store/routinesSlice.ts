@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
 import type { AppState } from "./types";
-import type { Routine, RoutineSummary, RoutineStatus } from "@/types";
+import type { Routine, RoutineSummary, ProgramSummary, Program, RoutineStatus } from "@/types";
 import type { PaginatedResponse, PaginationMeta } from "@/lib/api/pagination";
 import { apiGet, apiPatch } from "@/lib/api-client";
 
@@ -13,7 +13,7 @@ const emptyRoutine: Routine = {
 };
 
 export interface RoutinesSlice {
-  routines: RoutineSummary[];
+  routines: ProgramSummary[];
   routinesPagination: PaginationMeta | null;
   sessionRoutines: RoutineSummary[];
   routine: Routine;
@@ -41,8 +41,8 @@ export const createRoutinesSlice: StateCreator<AppState, [], [], RoutinesSlice> 
     if (params?.status) search.set("status", params.status);
 
     const query = search.toString();
-    const { data, pagination } = await apiGet<PaginatedResponse<RoutineSummary>>(
-      `/api/routines${query ? `?${query}` : ""}`
+    const { data, pagination } = await apiGet<PaginatedResponse<ProgramSummary>>(
+      `/api/programs${query ? `?${query}` : ""}`
     );
     set({ routines: data, routinesPagination: pagination });
   },
@@ -63,33 +63,30 @@ export const createRoutinesSlice: StateCreator<AppState, [], [], RoutinesSlice> 
 
   fetchLatestRoutine: async () => {
     try {
-      const { data } = await apiGet<PaginatedResponse<RoutineSummary>>("/api/routines?pageSize=50");
+      const { data } = await apiGet<PaginatedResponse<ProgramSummary>>("/api/programs?pageSize=50");
       if (data && data.length > 0) {
         const latestFinalized = data.find((r) => r.status === "finalized");
         if (!latestFinalized) {
-          // If no routines are finalized, load the most recent one (forming/ready/etc)
-          await get().fetchRoutineById(data[0].id);
+          // If no programs are finalized, fetch details of the first program to get its first routine day
+          const program = await apiGet<Program>(`/api/programs/${data[0].id}`);
+          if (program.routines && program.routines.length > 0) {
+            await get().fetchRoutineById(program.routines[0].id);
+          }
           return;
         }
 
-        if (latestFinalized.programId) {
-          // Find all routines belonging to the same program
-          const programRoutines = data
-            .filter((r) => r.programId === latestFinalized.programId)
-            .sort((a, b) => (a.dayIndex || 0) - (b.dayIndex || 0));
+        // Fetch the detailed program
+        const program = await apiGet<Program>(`/api/programs/${latestFinalized.id}`);
+        const programRoutines = [...program.routines].sort((a, b) => a.dayIndex - b.dayIndex);
 
-          // Find the first day without any logs (uncompleted)
-          const nextRoutine = programRoutines.find((r) => !r.logs || r.logs.length === 0);
-          if (nextRoutine) {
-            await get().fetchRoutineById(nextRoutine.id);
-          } else {
-            // If all days are completed, reset back to Day 1
-            const day1 = programRoutines.find((r) => r.dayIndex === 1) || programRoutines[0];
-            await get().fetchRoutineById(day1.id);
-          }
+        // Find the first day without any logs (uncompleted)
+        const nextRoutine = programRoutines.find((r) => !r.logs || r.logs.length === 0);
+        if (nextRoutine) {
+          await get().fetchRoutineById(nextRoutine.id);
         } else {
-          // Single-day routine
-          await get().fetchRoutineById(latestFinalized.id);
+          // If all days are completed, reset back to Day 1
+          const day1 = programRoutines.find((r) => r.dayIndex === 1) || programRoutines[0];
+          await get().fetchRoutineById(day1.id);
         }
 
         const loaded = get().routine;
@@ -107,14 +104,17 @@ export const createRoutinesSlice: StateCreator<AppState, [], [], RoutinesSlice> 
 
   fetchSessionRoutine: async (chatSessionId) => {
     try {
-      const { data } = await apiGet<PaginatedResponse<RoutineSummary>>(
-        `/api/routines?pageSize=50&chatSessionId=${chatSessionId}`
+      const { data } = await apiGet<PaginatedResponse<Program>>(
+        `/api/programs?pageSize=50&chatSessionId=${chatSessionId}`
       );
-      set({ sessionRoutines: data });
       if (data && data.length > 0) {
-        const sorted = [...data].sort((a, b) => (a.dayIndex || 0) - (b.dayIndex || 0));
+        const activeProgram = data[0];
+        set({ sessionRoutines: activeProgram.routines });
+
+        const sorted = [...activeProgram.routines].sort((a, b) => a.dayIndex - b.dayIndex);
         const firstRoutine = sorted.find((r) => r.dayIndex === 1) || sorted[0];
         await get().fetchRoutineById(firstRoutine.id);
+
         const loaded = get().routine;
         if (loaded.status === "ready" && get().chat.previewState === "chat-focus") {
           get().setPreviewState("docked");
@@ -124,7 +124,7 @@ export const createRoutinesSlice: StateCreator<AppState, [], [], RoutinesSlice> 
           get().setPreviewState("docked");
         }
       } else {
-        set({ routine: emptyRoutine, routineStatus: "idle" });
+        set({ sessionRoutines: [], routine: emptyRoutine, routineStatus: "idle" });
         if (get().chat.previewState !== "chat-focus") {
           get().setPreviewState("chat-focus");
         }
@@ -136,19 +136,19 @@ export const createRoutinesSlice: StateCreator<AppState, [], [], RoutinesSlice> 
 
   finalizeRoutine: async () => {
     const { routine } = get();
-    if (!routine.id) return;
-    const updated = await apiPatch<Routine>(`/api/routines/${routine.id}`, { action: "finalize" });
+    const programId = routine.programId || routine.id;
+    if (!programId) return;
+
+    await apiPatch<Program>(`/api/programs/${programId}`, { action: "finalize" });
     
     // Update local sessionRoutines status to finalized for matching items
-    const updatedSessionRoutines = get().sessionRoutines.map((r) => {
-      if (r.id === routine.id || (routine.totalDays && routine.totalDays > 1 && r.status !== "finalized")) {
-        return { ...r, status: "finalized" as const };
-      }
-      return r;
-    });
+    const updatedSessionRoutines = get().sessionRoutines.map((r) => ({
+      ...r,
+      status: "finalized" as const
+    }));
 
     set((s) => ({
-      routine: updated,
+      routine: { ...s.routine, status: "finalized" },
       sessionRoutines: updatedSessionRoutines,
       chat: { ...s.chat, previewState: "finalized" }
     }));
@@ -156,10 +156,10 @@ export const createRoutinesSlice: StateCreator<AppState, [], [], RoutinesSlice> 
 
   deleteRoutine: async (id) => {
     try {
-      await fetch(`/api/routines/${id}`, { method: "DELETE" });
+      await fetch(`/api/programs/${id}`, { method: "DELETE" });
       await get().fetchRoutines({ status: "finalized" });
     } catch (error) {
-      console.error("Failed to delete routine:", error);
+      console.error("Failed to delete program:", error);
     }
   },
 

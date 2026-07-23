@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Menu, MessageSquare, ChevronRight } from "lucide-react";
+import { ArrowLeft, Menu, MessageSquare, ChevronRight, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useAppStore } from "@/lib/store";
@@ -38,8 +38,8 @@ export default function RoutineDetailPage() {
     return (
       <main className="mx-auto flex min-h-dvh w-full max-w-md flex-1 flex-col items-center justify-center gap-3 px-6 py-6 text-center">
         <div className="font-display text-lg font-bold">Routine not found</div>
-        <Link href="/home" className="text-sm font-semibold text-coral-text">
-          ← Back to Home
+        <Link href="/home" className="flex items-center justify-center gap-2 font-semibold text-coral-text">
+          <ChevronLeft className="w-4 h-4" /> Back to Home
         </Link>
       </main>
     );
@@ -151,7 +151,7 @@ export default function RoutineDetailPage() {
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         routines={finalizedRoutines}
-        activeRoutineId={routine.id}
+        activeProgramId={routine.programId || routine.id}
         onDeleteRoutine={deleteRoutine}
       />
     </main>

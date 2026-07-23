@@ -1,38 +1,111 @@
 import type { ChatCompletionTool } from "openai/resources/chat/completions";
 import { prisma } from "@/lib/db";
 import { locationFromApi, locationToApi } from "@/lib/api/mappers";
-import { getExercisesByParametersInternal, runRoutineGenerationLoop, getExercisesToolDefinition } from "./generator";
+import { getExercisesByParametersInternal, runReviewer, saveRoutineToDb, ProgramCandidate } from "./generator";
 import { checkRoutineGenerationLimit } from "../rate-limit";
 
+
+const getExercisesToolDefinition = {
+  type: "function" as const,
+  function: {
+    name: "get_exercises_by_parameters",
+    description: "Batch query the exercise database for multiple routine slots in a single turn. Each slot represents one exercise target.",
+    parameters: {
+      type: "object",
+      properties: {
+        slots: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              slotLabel: {
+                type: "string",
+                description: `A label describing the role of this exercise slot (e.g. 'Primary Squat', 'Upper Chest Push', 'Core Flexion').`
+              },
+              posture: {
+                type: "string",
+                description: `Posture filter: 
+                Unique values posture include - 
+                "Supine", "Bridge", "Quadruped", "Seated Floor", "Hanging", "Prone", "Knee Hover Quadruped", "Side Plank", "Kneeling", "Seated", "Standing", "L Sit", "Half Kneeling", "Staggered Stance", "Inverted", "Single Leg Bridge", "Side Lying", "Walking", "Wall Sit", "Single Leg Standing Bent Knee", "Tall Kneeling", "Split Squat", "Single Leg Standing", "Single Leg Supported", "Knee Over Toe Split Squat", "Tuck L Sit", "Other", "V Sit Seated", "Isometric Split Squat", "March", "Shin Box Seated", "Horse Stance", "Knee Supported", "Running"
+                `
+              },
+              movementPattern: {
+                type: "string",
+                description: `Movement pattern during the exercise.
+                Unique values for movement pattern parameter include:
+                "Anti-Extension", "Hip Extension", "Anti-Rotational", "Rotational", "Spinal Flexion", "Horizontal Push",
+                "Hip Flexion", "Lateral Flexion", "Anti-Lateral Flexion", "Horizontal Pull", "Locomotion", "Isometric Hold",
+                "Vertical Pull", "Shoulder External Rotation", "Hip External Rotation", "Knee Dominant", "Vertical Push",
+                "Hip Hinge", "Hip Abduction", "Scapular Elevation", "Elbow Flexion", "Elbow Extension", "Spinal Extension",
+                "Loaded Carry", "Shoulder Flexion", "Other", "Shoulder Abduction", "Hip Dominant", "Ankle Plantar Flexion",
+                "Hip Adduction", "Ankle Dorsiflexion", "Wrist Flexion", "Horizontal Adduction", "Wrist Extension",
+                "Shoulder Internal Rotation", "Shoulder Scapular Plane Elevation", "Anti-Flexion", "Lateral Locomotion"
+                `
+              },
+              muscles: {
+                type: "array",
+                items: { type: "string" },
+                description: `Muscle groups targeted by the exercise. Unique values include:
+                "Abdominals", "Glutes", "Chest", "Hip Flexors", "Shoulders", "Back", "Biceps", "Quadriceps",
+                "Hamstrings", "Abductors", "Trapezius", "Triceps", "Forearms", "Calves", "Adductors", "Shins"
+                `
+              },
+              bodyRegion: {
+                type: "string",
+                description: `Body region targeted by the exercise. Unique values include:
+                "Lower Body", "Upper Body", "Core"
+                `
+              },
+              difficultyLevel: {
+                type: "string",
+                description: `Optional difficulty level. WARNING: Do not pass this parameter unless the user explicitly
+                requests a specific difficulty, as it excessively narrows results.
+                Unique values for difficulty level parameter include:
+                "Beginner", "Intermediate", "Novice", "Advanced", "Expert", "Grand Master", "Master", "Legendary"
+                `
+              },
+              equipment: {
+                type: "array",
+                items: { type: "string" },
+                description: `Equipment required for exercise routine
+                Unique values include:
+                "Stability Ball", "Bodyweight", "Gymnastic Rings", "Parallette Bars", "Slam Ball", "Dumbbell",
+                "Ab Wheel", "Cable", "Medicine Ball", "Suspension Trainer", "Barbell", "Miniband", "Sliders",
+                "Pull Up Bar", "EZ Bar", "Landmine", "Superband", "Kettlebell", "Resistance Band", "Weight Plate",
+                "Macebell", "Indian Club", "Clubbell", "Tire", "Trap Bar", "Battle Ropes", "Bulgarian Bag", "Heavy Sandbag",
+                "Sandbag", "Wall Ball", "Sled", "Climbing Rope"
+                `
+              },
+              laterality: {
+                type: "string",
+                description: `Laterality filter (e.g. Unilateral, Bilateral). 
+                Unique values include:
+                "Unilateral", "Bilateral", "Contralateral", "Ipsilateral"
+                `
+              },
+              limit: {
+                type: "number",
+                description: "Max results per slot (default 10)."
+              }
+            },
+            additionalProperties: false
+          },
+          description: "List of routine slots to fill, up to a maximum of 8 slots."
+        }
+      },
+      required: ["slots"],
+      additionalProperties: false
+    }
+  }
+};
 export const CHAT_TOOLS: ChatCompletionTool[] = [
   {
     type: "function",
     function: {
       name: "get_user_profile",
       description:
-        "Read back the user's durable biological profile (biodata, preferred location, etc.), active/recovering injuries, and active session intake options. Call this silently at the start of your reasoning so you don't re-ask for fields already known.",
+        "Read back the user's durable biological profile (biodata, preferred location, etc.), active/recovering injuries, and active session intake options.",
       parameters: { type: "object", properties: {}, additionalProperties: false },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "update_user_biodata",
-      description:
-        "Persist biological facts and preferences for the user (weight, height, date of birth, biological sex, training experience, preferred location, units preference). Only pass fields that were actually stated this conversation — never invent values.",
-      parameters: {
-        type: "object",
-        properties: {
-          weight: { type: "number", description: "Weight in preferred units." },
-          height: { type: "number", description: "Height in preferred units." },
-          dateOfBirth: { type: "string", description: "Date of birth in YYYY-MM-DD format." },
-          biologicalSex: { type: "string", description: "Biological sex (e.g. male, female)." },
-          experienceLevel: { type: "string", description: "Training experience level (e.g. beginner, intermediate, advanced)." },
-          preferredLocation: { type: "string", enum: ["home", "gym"], description: "Default location preference." },
-          unitsPreference: { type: "string", enum: ["lb", "kg"], description: "Preferred unit system." },
-        },
-        additionalProperties: false,
-      },
     },
   },
   {
@@ -106,27 +179,54 @@ export const CHAT_TOOLS: ChatCompletionTool[] = [
   {
     type: "function",
     function: {
-      name: "generate_workout_routine",
+      name: "propose_workout_routine",
       description:
-        "Triggers the Actor-Critic Generator/Reviewer routine-generation loop to create a workout routine for the user. Call this only when location, equipment, and session duration are confirmed.",
-      parameters: { type: "object", properties: {}, additionalProperties: false },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "modify_workout_routine",
-      description:
-        "Modify or refine the user's current workout routine based on their specific feedback (e.g. swap exercises, change equipment, add/remove movements).",
+        "Propose a candidate workout routine program to the Reviewer for validation and database persistence. Call this once you have selected matching exercises and built the program structure based on user preferences.",
       parameters: {
         type: "object",
         properties: {
-          feedback: {
+          programTitle: {
             type: "string",
-            description: "The user's requested adjustment (e.g., 'Swap rows for something else', 'Add weight lifting').",
+            description: "Overall program title (e.g., 'Back & Shoulders Focus').",
+          },
+          conversationSummary: {
+            type: "string",
+            description: "A summary of the user's goals, focus, routine length in days, and constraints (e.g., '7 days back and shoulders routine, bodyweight, 20 mins, beginner, pains or injuries if any').",
+          },
+          totalDays: {
+            type: "integer",
+            description: "Total days in the workout program split.",
+          },
+          routines: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                title: { type: "string", description: "Title of the day's routine (e.g., 'Day 1: Back Strength')." },
+                subtitle: { type: "string", description: "Focus of this day's routine." },
+                dayIndex: { type: "integer", description: "Day number, starting from 1." },
+                exercises: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      exerciseId: { type: "string", description: "Exact exercise ID from get_exercises_by_parameters." },
+                      sets: { type: "integer", description: "Number of sets." },
+                      targetReps: { type: "integer", description: "Target reps per set (or null if time-based)." },
+                      targetSeconds: { type: "integer", description: "Target seconds per set (or null if rep-based)." },
+                      targetSide: { type: "string", description: "Optional side target, e.g. 'per-side'." },
+                    },
+                    required: ["exerciseId", "sets"],
+                    additionalProperties: false,
+                  },
+                },
+              },
+              required: ["title", "subtitle", "dayIndex", "exercises"],
+              additionalProperties: false,
+            },
           },
         },
-        required: ["feedback"],
+        required: ["programTitle", "conversationSummary", "totalDays", "routines"],
         additionalProperties: false,
       },
     },
@@ -143,8 +243,15 @@ async function getUserProfile(userId: string, chatSessionId: string) {
       sessionDurationMinutes: true,
     },
   });
-  const activeInjuries = await prisma.injury.findMany({
-    where: { userId, status: { in: ["ACTIVE", "RECOVERING"] } },
+
+  const activePrograms = await prisma.workoutProgram.findMany({
+    where: {
+      chatSessionId,
+      status: "APPROVED",
+    },
+    include: {
+      routines: true
+    },
   });
 
   return {
@@ -155,56 +262,14 @@ async function getUserProfile(userId: string, chatSessionId: string) {
     dateOfBirth: profile?.dateOfBirth?.toISOString().slice(0, 10) ?? null,
     biologicalSex: profile?.biologicalSex ?? null,
     experienceLevel: profile?.experienceLevel ?? null,
-    preferredLocation: profile?.preferredLocation ? locationToApi(profile.preferredLocation) : null,
+    defaultLocation: profile?.preferredLocation ? locationToApi(profile.preferredLocation) : null,
     unitsPreference: profile?.unitsPreference ?? "lb",
     // Session-scoped intake
     location: activeSession?.location ? locationToApi(activeSession.location) : null,
     equipment: activeSession?.equipment ?? [],
     sessionDurationMinutes: activeSession?.sessionDurationMinutes ?? null,
-    // Safety
-    injuries: activeInjuries.map((inj) => ({
-      id: inj.id,
-      bodyPart: inj.bodyPart,
-      severity: inj.severity.toLowerCase(),
-      note: inj.note,
-      onsetDate: inj.onsetDate?.toISOString().slice(0, 10) ?? null,
-      status: inj.status.toLowerCase(),
-    })),
-  };
-}
-
-async function updateUserBiodata(userId: string, argsJson: string) {
-  let args: any;
-  try {
-    args = JSON.parse(argsJson);
-  } catch {
-    return { error: "invalid arguments: not valid JSON" };
-  }
-
-  const { weight, height, dateOfBirth, biologicalSex, experienceLevel, preferredLocation, unitsPreference } = args;
-
-  const profile = await prisma.userProfile.update({
-    where: { userId },
-    data: {
-      weight: weight !== undefined ? weight : undefined,
-      height: height !== undefined ? height : undefined,
-      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
-      biologicalSex: biologicalSex !== undefined ? biologicalSex : undefined,
-      experienceLevel: experienceLevel !== undefined ? experienceLevel : undefined,
-      preferredLocation: preferredLocation ? locationFromApi(preferredLocation) as any : undefined,
-      unitsPreference: unitsPreference !== undefined ? unitsPreference : undefined,
-    },
-  });
-
-  return {
-    saved: true,
-    weight: profile.weight,
-    height: profile.height,
-    dateOfBirth: profile.dateOfBirth?.toISOString().slice(0, 10) ?? null,
-    biologicalSex: profile.biologicalSex,
-    experienceLevel: profile.experienceLevel,
-    preferredLocation: profile.preferredLocation ? locationToApi(profile.preferredLocation) : null,
-    unitsPreference: profile.unitsPreference,
+    // Current active prograns in DB
+    activePrograms: activePrograms,
   };
 }
 
@@ -307,43 +372,7 @@ async function retrieveUserSafetyProfile(userId: string) {
   return { injuries };
 }
 
-async function generateWorkoutRoutine(
-  userId: string,
-  chatSessionId: string,
-  onProgress: (text: string) => void
-) {
-  try {
-    const { success, retryAfterSeconds } = await checkRoutineGenerationLimit(userId);
-    if (!success) {
-      return {
-        success: false,
-        error: "rate_limited",
-        retryAfterSeconds,
-        userGuidance: `You can generate 5 routines per hour. Please try again in ${retryAfterSeconds} seconds.`
-      };
-    }
-
-    const routine = await runRoutineGenerationLoop({
-      userId,
-      chatSessionId,
-      onProgress,
-    });
-    return {
-      success: true,
-      routineId: routine.id,
-      title: routine.title,
-      subtitle: routine.subtitle,
-      status: routine.status,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to generate routine",
-    };
-  }
-}
-
-async function modifyWorkoutRoutine(
+async function proposeWorkoutRoutine(
   userId: string,
   chatSessionId: string,
   argsJson: string,
@@ -359,31 +388,138 @@ async function modifyWorkoutRoutine(
         userGuidance: `You can generate 5 routines per hour. Please try again in ${retryAfterSeconds} seconds.`
       };
     }
-    
-    let args: { feedback?: string };
-    try {
-      args = JSON.parse(argsJson) as { feedback?: string };
-    } catch {
-      return { error: "invalid arguments" };
-    }
-    const { feedback } = args;
-    const routine = await runRoutineGenerationLoop({
-      userId,
-      chatSessionId,
-      onProgress,
-      feedback,
-    });
-    return {
-      success: true,
-      routineId: routine.id,
-      title: routine.title,
-      subtitle: routine.subtitle,
-      status: routine.status,
+
+    let args: {
+      programTitle?: string;
+      conversationSummary?: string;
+      totalDays?: number;
+      routines?: ProgramCandidate["routines"];
     };
+    try {
+      args = JSON.parse(argsJson);
+    } catch {
+      return { error: "invalid arguments: not valid JSON" };
+    }
+
+    const { programTitle, conversationSummary, totalDays, routines } = args;
+    if (!programTitle || !conversationSummary || !totalDays || !routines) {
+      return { error: "Missing required fields: programTitle, conversationSummary, totalDays, routines" };
+    }
+
+    const profile = await prisma.userProfile.findUnique({ where: { userId } });
+    if (!profile) {
+      throw new Error("User profile not found");
+    }
+
+    const activeSession = await prisma.chatSession.findUnique({
+      where: { id: chatSessionId },
+    });
+
+    const activeInjuries = await prisma.injury.findMany({
+      where: { userId, status: { in: ["ACTIVE", "RECOVERING"] } },
+    });
+
+    const biodataText = `
+- Weight: ${profile.weight ? `${profile.weight} ${profile.unitsPreference}` : "Not specified"}
+- Height: ${profile.height ? `${profile.height} ${profile.unitsPreference === "lb" ? "in" : "cm"}` : "Not specified"}
+- Age/Date of Birth: ${profile.dateOfBirth ? profile.dateOfBirth.toISOString().slice(0, 10) : "Not specified"}
+- Biological Sex: ${profile.biologicalSex || "Not specified"}
+- Training Experience Level: ${profile.experienceLevel || "Not specified"}
+- Preferred Location: ${profile.preferredLocation || "Not specified"}
+`.trim();
+
+    const locationText = activeSession?.location ? activeSession.location.toString().toLowerCase() : "Not specified";
+    const equipmentText = activeSession?.equipment && activeSession.equipment.length > 0
+      ? activeSession.equipment.join(", ")
+      : "None";
+    const durationText = activeSession?.sessionDurationMinutes
+      ? `${activeSession.sessionDurationMinutes} minutes`
+      : "45 minutes";
+
+    const injuriesText = activeInjuries.length > 0
+      ? activeInjuries.map((inj) => `- ${inj.bodyPart} (${inj.severity.toLowerCase()}): ${inj.note || "No details"}`).join("\n")
+      : "None";
+
+    const activeRoutines = await prisma.workoutRoutine.findMany({
+      where: {
+        program: {
+          chatSessionId,
+          status: "APPROVED",
+        },
+      },
+      orderBy: { dayIndex: "asc" },
+      include: {
+        items: {
+          include: { exercise: true },
+          orderBy: { order: "asc" },
+        },
+      },
+    });
+
+    let currentRoutineContext = "";
+    if (activeRoutines.length > 0) {
+      currentRoutineContext = `\nActive Program Routines to modify:\n`;
+      for (const routine of activeRoutines) {
+        currentRoutineContext += `Day ${routine.dayIndex || 1}: ${routine.title} (ID: ${routine.id})\n`;
+        if (routine.subtitle) {
+          currentRoutineContext += `Subtitle: ${routine.subtitle}\n`;
+        }
+        currentRoutineContext += `Exercises:\n`;
+        routine.items.forEach((item) => {
+          currentRoutineContext += `  - ${item.exercise.name} (ID: ${item.exerciseId}) - ${item.sets} sets x ${item.targetReps ?? item.targetSeconds ?? 10} reps/secs\n`;
+        });
+        currentRoutineContext += `\n`;
+      }
+    }
+
+    const candidateRoutine: ProgramCandidate = {
+      programTitle,
+      totalDays: Number(totalDays),
+      routines,
+    };
+
+    const reviewResult = await runReviewer(
+      biodataText,
+      locationText,
+      equipmentText,
+      durationText,
+      injuriesText,
+      candidateRoutine,
+      onProgress,
+      currentRoutineContext,
+      conversationSummary
+    );
+
+    if (reviewResult.status === "APPROVED") {
+      const routine = await saveRoutineToDb({
+        userId,
+        chatSessionId,
+        routineData: candidateRoutine,
+        status: "APPROVED",
+      });
+
+      if (!routine) {
+        throw new Error("Routine could not be saved to database");
+      }
+
+      return {
+        success: true,
+        status: "APPROVED",
+        routineId: routine.id,
+        title: routine.title,
+        subtitle: routine.subtitle,
+      };
+    } else {
+      return {
+        success: false,
+        status: "REJECTED",
+        reviewNotes: reviewResult.reviewNotes,
+      };
+    }
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to modify routine",
+      error: error instanceof Error ? error.message : "Failed to process proposed routine",
     };
   }
 }
@@ -397,9 +533,6 @@ export async function executeToolCall(
 ): Promise<unknown> {
   if (name === "get_user_profile") {
     return getUserProfile(userId, chatSessionId);
-  }
-  if (name === "update_user_biodata") {
-    return updateUserBiodata(userId, argsJson);
   }
   if (name === "update_session_intake") {
     return updateSessionIntake(chatSessionId, argsJson);
@@ -416,11 +549,8 @@ export async function executeToolCall(
   if (name === "retrieve_user_safety_profile") {
     return retrieveUserSafetyProfile(userId);
   }
-  if (name === "generate_workout_routine") {
-    return generateWorkoutRoutine(userId, chatSessionId, onProgress);
-  }
-  if (name === "modify_workout_routine") {
-    return modifyWorkoutRoutine(userId, chatSessionId, argsJson, onProgress);
+  if (name === "propose_workout_routine") {
+    return proposeWorkoutRoutine(userId, chatSessionId, argsJson, onProgress);
   }
   return { error: `unknown tool: ${name}` };
 }

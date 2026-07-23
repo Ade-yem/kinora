@@ -1,14 +1,14 @@
 "use client";
 
 import { X, Trash2 } from "lucide-react";
-import type { RoutineSummary } from "@/types";
+import type { ProgramSummary } from "@/types";
 import { useRouter } from "next/navigation";
 
 interface FinalizedRoutinesSidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  routines: RoutineSummary[];
-  activeRoutineId: string;
+  routines: ProgramSummary[];
+  activeProgramId: string;
   onDeleteRoutine: (id: string) => void;
 }
 
@@ -39,7 +39,7 @@ export function FinalizedRoutinesSidebar({
   isOpen,
   onClose,
   routines,
-  activeRoutineId,
+  activeProgramId,
   onDeleteRoutine,
 }: FinalizedRoutinesSidebarProps) {
   const router = useRouter();
@@ -76,7 +76,7 @@ export function FinalizedRoutinesSidebar({
         {/* Routines List */}
         <div className="mt-8 flex-1 overflow-y-auto space-y-3 hide-scrollbar">
           {routines.map((r) => {
-            const isActive = r.id === activeRoutineId;
+            const isActive = r.id === activeProgramId;
             return (
               <div
                 key={r.id}
@@ -88,7 +88,7 @@ export function FinalizedRoutinesSidebar({
               >
                 <button
                   onClick={() => {
-                    router.push(`/routine/${r.id}`);
+                    router.push(`/workout/${r.firstRoutineId}`);
                     onClose();
                   }}
                   className="flex-1 text-left cursor-pointer focus:outline-none"

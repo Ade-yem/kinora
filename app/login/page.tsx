@@ -23,12 +23,11 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     toast.loading("Logging you in...", { id: "logging" });
-    const res = await signIn("google", { redirect: false });
+    const res = await signIn("google", { callbackUrl: "/onboarding" });
     if (res?.error) {
       toast.error(res.error || "Something went wrong", { id: "logging" });
     } else {
       toast.success("Logged in successfully!", { id: "logging" });
-      router.replace("/onboarding");
     }
   };
 

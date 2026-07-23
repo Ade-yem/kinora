@@ -1,8 +1,8 @@
 import Link from "next/link";
-import type { RoutineSummary } from "@/types";
+import type { ProgramSummary } from "@/types";
 import { Dumbbell, Clock, CheckCircle2 } from "lucide-react";
 
-export function RecentSavedRow({ routines }: { routines: RoutineSummary[] }) {
+export function RecentSavedRow({ routines }: { routines: ProgramSummary[] }) {
   // Only display finalized routines under "Recent & Saved"
   const finalizedRoutines = routines.filter((r) => r.status === "finalized");
 
@@ -17,7 +17,7 @@ export function RecentSavedRow({ routines }: { routines: RoutineSummary[] }) {
         {finalizedRoutines.map((routine) => (
           <Link
             key={routine.id}
-            href={`/workout/${routine.id}`}
+            href={`/workout/${routine.firstRoutineId}`}
             className="flex items-center justify-between rounded-2xl border border-ink/8 bg-surface p-4 transition shadow-xs hover:border-ink/20 cursor-pointer"
           >
             <div className="flex items-start gap-3">

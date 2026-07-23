@@ -27,8 +27,8 @@ export async function DELETE(
       return respondError(ApiError.notFound("Chat session not found"));
     }
 
-    // 1. Explicitly delete any unfinalized routines (where finalizedAt is null) associated with this chat session
-    await prisma.workoutRoutine.deleteMany({
+    // 1. Explicitly delete any unfinalized programs (where finalizedAt is null) associated with this chat session
+    await prisma.workoutProgram.deleteMany({
       where: {
         chatSessionId: id,
         finalizedAt: null,
