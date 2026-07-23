@@ -13,21 +13,21 @@
 
 */
 -- DropForeignKey
-ALTER TABLE "workout_routines" DROP CONSTRAINT "workout_routines_chat_session_id_fkey";
+ALTER TABLE "workout_routines" DROP CONSTRAINT IF EXISTS "workout_routines_chat_session_id_fkey";
 
 -- DropForeignKey
-ALTER TABLE "workout_routines" DROP CONSTRAINT "workout_routines_user_id_fkey";
+ALTER TABLE "workout_routines" DROP CONSTRAINT IF EXISTS "workout_routines_user_id_fkey";
 
 -- DropIndex
-DROP INDEX "workout_routines_user_id_status_idx";
+DROP INDEX IF EXISTS "workout_routines_user_id_status_idx";
 
 -- AlterTable
-ALTER TABLE "workout_routines" DROP COLUMN "chat_session_id",
-DROP COLUMN "finalized_at",
-DROP COLUMN "review_notes",
-DROP COLUMN "status",
-DROP COLUMN "total_days",
-DROP COLUMN "user_id",
+ALTER TABLE "workout_routines" DROP COLUMN IF EXISTS "chat_session_id",
+DROP COLUMN IF EXISTS "finalized_at",
+DROP COLUMN IF EXISTS "review_notes",
+DROP COLUMN IF EXISTS "status",
+DROP COLUMN IF EXISTS "total_days",
+DROP COLUMN IF EXISTS "user_id",
 ALTER COLUMN "program_id" SET NOT NULL,
 ALTER COLUMN "day_index" SET NOT NULL;
 
