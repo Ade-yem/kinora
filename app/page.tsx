@@ -35,7 +35,7 @@ export default function WelcomePage() {
       </div>
 
       <div className="flex flex-col gap-3.5">
-        <Button variant="primary" href="/onboarding">
+        <Button variant="primary" href="/signup">
           Get Started
         </Button>
         <Link href="/login" className="text-center text-sm font-semibold text-ink/55">
